@@ -105,6 +105,26 @@ namespace CommonImageActions.AspNetCore
                     imageActions.Mode = mode;
                 }
 
+                //add unofficial support for other interpretations of mode based on feedback
+                //example: I like zoom, but others feel it should be call crop
+                if(string.Equals(modeString, "pad", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    imageActions.Mode = ImageMode.Fit;
+                }
+                else if (string.Equals(modeString, "crop", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    imageActions.Mode = ImageMode.Zoom;
+                }
+                else if (string.Equals(modeString, "carve", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    imageActions.Mode = ImageMode.Zoom;
+                }
+                else if (string.Equals(modeString, "min", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    imageActions.Mode = ImageMode.Zoom;
+                }
+
+
                 //if there are no actions to perform then let the normal flow deal with it
                 if (imageActions.HasAnyActions() == false)
                 {
