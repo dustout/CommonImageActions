@@ -104,6 +104,12 @@ namespace CommonImageActions.AspNetCore
                 }
                 else
                 {
+                    //check to see if the request has been modified (for example if someone has requested root
+                    if(imageFilePath.StartsWith(webRootPath) == false)
+                    {
+                        throw new UnauthorizedAccessException();
+                    }
+
                     //if file does not exist then let normal flow deal with it
                     if (!File.Exists(imageFilePath))
                     {
