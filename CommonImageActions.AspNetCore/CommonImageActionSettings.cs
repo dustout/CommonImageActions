@@ -1,10 +1,15 @@
-﻿using System;
+﻿using CommonImageActions.Core;
+using System;
 
 namespace CommonImageActions.AspNetCore
 {
     public class CommonImageActionSettings
     {
         public string PathToWatch { get; set; } = "/";
+
+        public string RemoteFileServerUrl { get; set; }
+
+        public ImageActions DefaultImageActions { get; set; }
 
         public static string[] ValidImageExtensions = {
             ".bmp",

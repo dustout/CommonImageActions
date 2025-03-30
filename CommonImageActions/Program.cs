@@ -13,7 +13,8 @@ app.UseCommonImageActions(
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/abc",
+        PathToWatch = "/remote",
+        RemoteFileServerUrl = "https://dustingamester.com/img/"
     }
 );
 

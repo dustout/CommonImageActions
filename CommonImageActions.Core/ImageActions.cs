@@ -5,6 +5,24 @@ namespace CommonImageActions.Core
 {
     public class ImageActions
     {
+        public ImageActions()
+        {
+
+        }
+
+        public ImageActions(ImageActions defaults)
+        {
+            if(defaults != null)
+            {
+                Width = defaults.Width;
+                Height = defaults.Height;
+                Page = defaults.Page;
+                PdfPassword = defaults.PdfPassword;
+                Format = defaults.Format;
+                Mode = defaults.Mode;
+            }
+        }
+
         public int? Width { get; set; }
 
         public int? Height { get; set; }

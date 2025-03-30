@@ -52,7 +52,7 @@ namespace CommonImageActions.AspNetCore
                 }
 
                 //convert query string into image actions
-                var imageActions = ConvertQueryStringToImageActions(uri.Query);
+                var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
 
                 //if there are no actions to perform then let the normal flow deal with it
                 if (imageActions.HasAnyActions() == false)
@@ -91,10 +91,10 @@ namespace CommonImageActions.AspNetCore
             await _next(context);
         }
 
-        public ImageActions ConvertQueryStringToImageActions(string queryString)
+        public ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)
         {
             //initialize image actions
-            var imageActions = new ImageActions();
+            var imageActions = new ImageActions(defaultImageActions);
 
             //if there are no paramters then let the normal flow deal with it
             var query = HttpUtility.ParseQueryString(queryString);
