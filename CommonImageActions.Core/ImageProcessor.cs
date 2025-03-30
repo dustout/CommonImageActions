@@ -1,0 +1,273 @@
+﻿using Microsoft.Maui.Graphics.Skia;
+using PDFiumCore;
+using SkiaSharp;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CommonImageActions.Core
+{
+    public class ImageProcessor
+    {
+        public static int JpegQuality = 90;
+        public static int GifQuality = 90;
+
+        private static bool isPdfiumInitalized = false;
+
+        public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions, bool isPdf = false)
+        {
+            if(actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions));
+            }
+
+            //placeholder for final image
+            SKData? encodedImage = null;
+
+            //copy stream into memory asyncronously
+            byte[] imageData = null;
+            using(var ms = new MemoryStream())
+            {
+                await imageStream.CopyToAsync(ms);
+                imageData = ms.ToArray();
+            }
+
+            if (isPdf)
+            {
+                //make sure pdfium is initalized
+                if (isPdfiumInitalized == false)
+                {
+                    fpdfview.FPDF_InitLibrary();
+                    isPdfiumInitalized = true;
+                }
+            }
+            else
+            {
+                using var stream = new MemoryStream(imageData);
+                using var codec = SKCodec.Create(stream);
+                using var originalBitmap = SKBitmap.Decode(codec);
+                using var newImage = new SkiaImage(originalBitmap);
+
+                encodedImage = EncodeSkiaImage(newImage, actions, codec);
+            }
+
+            if(encodedImage == null)
+            {
+                throw new Exception("Error processing image");
+            }
+
+            return encodedImage.ToArray();
+        }
+
+        private static SKData? EncodeSkiaImage(SkiaImage? newImage, ImageActions imageActions, SKCodec? codec = null)
+        {
+            //make sure image was loaded successfully
+            if (newImage == null)
+            {
+                throw new Exception("Error processing image");
+            }
+
+            // when only width is set, calculate the height
+            if (imageActions.Width.HasValue &&
+                imageActions.Height.HasValue == false)
+            {
+                var aspectRatio = (double)newImage.Height / newImage.Width;
+                imageActions.Height = (int)(imageActions.Width.Value * aspectRatio);
+            }
+
+            // when only height is set, calculate the width
+            if (imageActions.Height.HasValue &&
+                imageActions.Width.HasValue == false)
+            {
+                var aspectRatio = (double)newImage.Width / newImage.Height;
+                imageActions.Width = (int)(imageActions.Height.Value * aspectRatio);
+            }
+
+            // when neither width nor height is set, use the original image dimensions
+            if (imageActions.Width.HasValue == false &&
+                imageActions.Height.HasValue == false)
+            {
+                imageActions.Width = (int)newImage.Width;
+                imageActions.Height = (int)newImage.Height;
+            }
+
+            //the image actions width and height should always be set from here on, have a sanity check just in case
+            if (imageActions.Width.HasValue == false || imageActions.Height.HasValue == false)
+            {
+                throw new NotImplementedException("Width and Height could not be calculated");
+            }
+
+            // if the mode is max then constrain dimensions to requested width and height
+            if (imageActions.Mode == ImageMode.Max)
+            {
+                var aspectRatio = (double)newImage.Width / newImage.Height;
+                if (imageActions.Width.Value / aspectRatio <= imageActions.Height.Value)
+                {
+                    imageActions.Height = (int)(imageActions.Width.Value / aspectRatio);
+                }
+                else
+                {
+                    imageActions.Width = (int)(imageActions.Height.Value * aspectRatio);
+                }
+            }
+
+            // Create a new bitmap with the new dimensions
+            var skBmp = new SkiaBitmapExportContext(imageActions.Width.Value, imageActions.Height.Value, 1.0f);
+            var canvas = skBmp.Canvas;
+
+            //use the exif data to rotate the image
+            if (codec != null)
+            {
+                var orientation = codec.EncodedOrigin;
+                switch (orientation)
+                {
+                    default:
+                    case SKEncodedOrigin.Default:
+                        break;
+
+                    case SKEncodedOrigin.TopRight:
+                        canvas.Rotate(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+
+                    case SKEncodedOrigin.BottomRight:
+                        canvas.Rotate(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+
+                    case SKEncodedOrigin.BottomLeft:
+                        break;
+
+                    case SKEncodedOrigin.LeftTop:
+                        canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+
+                    case SKEncodedOrigin.RightTop:
+                        canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+
+                    case SKEncodedOrigin.RightBottom:
+                        canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+
+                    case SKEncodedOrigin.LeftBottom:
+                        canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        break;
+                }
+            }
+
+            //write to the canvas
+            switch (imageActions.Mode)
+            {
+                //depend on canvas size
+                case ImageMode.None:
+                case ImageMode.Stretch:
+                case ImageMode.Max:
+                    canvas.DrawImage(newImage, 0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    break;
+
+                //fit within canvas
+                case ImageMode.Fit:
+                    var fitScale = Math.Min((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
+                    var fitScaledWidth = (int)(newImage.Width * fitScale);
+                    var fitScaledHeight = (int)(newImage.Height * fitScale);
+                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
+                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
+                    canvas.DrawImage(newImage, fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    break;
+
+                //zoom in and fill canvas while maintaing aspect ratio
+                case ImageMode.Zoom:
+                    var scale = Math.Max((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
+                    var scaledWidth = (int)(newImage.Width * scale);
+                    var scaledHeight = (int)(newImage.Height * scale);
+                    var offsetX = (imageActions.Width.Value - scaledWidth) / 2;
+                    var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
+                    canvas.DrawImage(newImage, offsetX, offsetY, scaledWidth, scaledHeight);
+                    break;
+
+                default: throw new NotImplementedException();
+            }
+
+            //set export format
+            var exportImageType = SKEncodedImageFormat.Png;
+            if (imageActions.Format.HasValue) //user specified overrides default
+            {
+                exportImageType = imageActions.Format.Value;
+            }
+            else if (codec != null) //otherwise export as what it started as
+            {
+                exportImageType = codec.EncodedFormat;
+            }
+
+            //set requested format so export know what to do
+            imageActions.Format = exportImageType;
+
+            //set encoding quality
+            SKData? encodedImage = null;
+            switch (exportImageType)
+            {
+                default:
+                    encodedImage = skBmp.SKImage.Encode(exportImageType, 100);
+                    break;
+
+                case SKEncodedImageFormat.Jpeg:
+                    encodedImage = skBmp.SKImage.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
+                    break;
+
+                case SKEncodedImageFormat.Gif:
+                    encodedImage = skBmp.SKImage.Encode(SKEncodedImageFormat.Gif, GifQuality);
+                    break;
+            }
+
+            return encodedImage;
+        }
+
+        private byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
+        {
+            int bytesPerPixel = 4; // BGRA32
+
+            // Calculate the size of the image data
+            int imageSize = width * height * bytesPerPixel;
+
+            // Create BMP file header (14 bytes)
+            byte[] bmpFileHeader = new byte[14];
+            bmpFileHeader[0] = (byte)'B';
+            bmpFileHeader[1] = (byte)'M';
+            int fileSize = 54 + imageSize; // 54 bytes for headers + image data
+            BitConverter.GetBytes(fileSize).CopyTo(bmpFileHeader, 2);
+            bmpFileHeader[10] = 54; // Pixel data offset
+
+            // Create DIB header (40 bytes)
+            byte[] dibHeader = new byte[40];
+            BitConverter.GetBytes(40).CopyTo(dibHeader, 0); // DIB header size
+            BitConverter.GetBytes(width).CopyTo(dibHeader, 4);
+            BitConverter.GetBytes(height).CopyTo(dibHeader, 8);
+            dibHeader[12] = 1; // Number of color planes
+            dibHeader[14] = 32; // Bits per pixel
+                                // Compression (0 = BI_RGB, no compression)
+                                // Image size (can be 0 for BI_RGB)
+            BitConverter.GetBytes(imageSize).CopyTo(dibHeader, 20);
+
+            // Reverse the rows in the pixel data
+            byte[] reversedData = new byte[imageSize];
+            int rowSize = width * bytesPerPixel;
+            for (int i = 0; i < height; i++)
+            {
+                Array.Copy(managedArray, i * rowSize, reversedData, (height - 1 - i) * rowSize, rowSize);
+            }
+
+            byte[] bmpData = null;
+            using (var fs = new MemoryStream())
+            {
+                fs.Write(bmpFileHeader, 0, bmpFileHeader.Length);
+                fs.Write(dibHeader, 0, dibHeader.Length);
+                fs.Write(reversedData, 0, managedArray.Length);
+                bmpData = fs.ToArray();
+            }
+
+            return bmpData;
+        }
+    }
+}
