@@ -73,7 +73,7 @@ namespace CommonImageActions.AspNetCore
                     throw new NotImplementedException($"{imageExtension} not supported");
                 }
 
-                //send set response type
+                //set response type
                 if (imageActions.Format.HasValue)
                 {
                     context.Response.ContentType = $"image/{imageActions.Format.Value.ToString().ToLower()}";
