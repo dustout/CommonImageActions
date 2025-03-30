@@ -259,12 +259,24 @@ namespace CommonImageActions.Core
 
                 //fit within canvas
                 case ImageMode.Fit:
-                    var fitScale = Math.Min((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
-                    var fitScaledWidth = (int)(newImage.Width * fitScale);
-                    var fitScaledHeight = (int)(newImage.Height * fitScale);
-                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
-                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
-                    canvas.DrawImage(newImage, fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    if (isOddRotation)
+                    {
+                        var fitScale = Math.Min((double)imageActions.Height.Value / newImage.Width, (double)imageActions.Width.Value / newImage.Height);
+                        var fitScaledWidth = (int)(newImage.Width * fitScale);
+                        var fitScaledHeight = (int)(newImage.Height * fitScale);
+                        var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
+                        var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
+                        canvas.DrawImage(newImage, fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    }
+                    else
+                    {
+                        var fitScale = Math.Min((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
+                        var fitScaledWidth = (int)(newImage.Width * fitScale);
+                        var fitScaledHeight = (int)(newImage.Height * fitScale);
+                        var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
+                        var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
+                        canvas.DrawImage(newImage, fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    }
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
