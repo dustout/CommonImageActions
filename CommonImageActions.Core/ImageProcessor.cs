@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,23 +19,10 @@ namespace CommonImageActions.Core
 
         private static bool isPdfiumInitalized = false;
 
-        public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions, bool isPdf = false)
+        public static byte[] ProcessImage(byte[] imageData, ImageActions actions, bool isPdf = false)
         {
-            if(actions == null)
-            {
-                throw new ArgumentNullException(nameof(actions));
-            }
-
             //placeholder for final image
             SKData? encodedImage = null;
-
-            //copy stream into memory asyncronously
-            byte[] imageData = null;
-            using(var ms = new MemoryStream())
-            {
-                await imageStream.CopyToAsync(ms);
-                imageData = ms.ToArray();
-            }
 
             if (isPdf)
             {
@@ -123,12 +111,30 @@ namespace CommonImageActions.Core
                 encodedImage = EncodeSkiaImage(newImage, actions, codec);
             }
 
-            if(encodedImage == null)
+            if (encodedImage == null)
             {
                 throw new Exception("Error processing image");
             }
 
             return encodedImage.ToArray();
+        }
+
+        public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions, bool isPdf = false)
+        {
+            if(actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions));
+            }
+
+            //copy stream into memory asyncronously
+            byte[] imageData = null;
+            using(var ms = new MemoryStream())
+            {
+                await imageStream.CopyToAsync(ms);
+                imageData = ms.ToArray();
+            }
+
+            return ProcessImage(imageData, actions, isPdf);
         }
 
         private static SKData? EncodeSkiaImage(SkiaImage? newImage, ImageActions imageActions, SKCodec? codec = null)
