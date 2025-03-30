@@ -38,28 +38,11 @@ namespace CommonImageActions.AspNetCore
                 var url = $"{context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
                 var uri = new Uri(url);
 
-                //if there are no paramters then let the normal flow deal with it
-                var query = HttpUtility.ParseQueryString(uri.Query);
-                if (query.Count == 0)
-                {
-                    //do nothing, let the normal flow deal with it
-                    await _next(context);
-                    return;
-                }
-
                 //get file information
                 var segments = uri.Segments.Skip(1).Select(x => x.TrimEnd('/')).ToArray();
                 var imageFileRelativePath = Path.Combine(segments);
                 var imageFilePath = Path.Combine(_env.ContentRootPath, "wwwroot", imageFileRelativePath);
                 var imageExtension = GetImageExtension(imageFilePath);
-
-                //if image extension not found then let the normal flow deal with it
-                if (imageExtension == null)
-                {
-                    //do nothing, let the normal flow deal with it
-                    await _next(context);
-                    return;
-                }
 
                 //if file does not exist then let normal flow deal with it
                 if (!File.Exists(imageFilePath))
@@ -68,57 +51,8 @@ namespace CommonImageActions.AspNetCore
                     return;
                 }
 
-                //initialize image actions
-                var imageActions = new ImageActions();
-
-                //convert url parameters into an image action
-                var widthString = query["width"] ?? query["w"];
-                if (int.TryParse(widthString, out int width))
-                {
-                    imageActions.Width = width;
-                }
-
-                var heightString = query["height"] ?? query["h"];
-                if (int.TryParse(heightString, out int height))
-                {
-                    imageActions.Height = height;
-                }
-
-                var pageString = query["Page"] ?? query["p"];
-                if (int.TryParse(pageString, out int page))
-                {
-                    imageActions.Page = page;
-                }
-
-                var pdfPasswordString = query["Password"] ?? query["pw"];
-                imageActions.PdfPassword = pdfPasswordString;
-
-                var formatString = query["format"] ?? query["f"];
-                if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
-                {
-                    imageActions.Format = format;
-                }
-
-                var modeString = query["mode"] ?? query["m"];
-                if (Enum.TryParse<ImageMode>(modeString, true, out var mode))
-                {
-                    imageActions.Mode = mode;
-                }
-
-                //add unofficial support for other interpretations of mode based on feedback
-                //example: I like zoom, but others feel it should be call crop, so just fall back to zoom
-                //         as a general catchall for any other interpretations
-                if (imageActions.Mode.HasValue == false && !string.IsNullOrEmpty(modeString))
-                {
-                    if (string.Equals(modeString, "pad", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        imageActions.Mode = ImageMode.Fit;
-                    }
-                    else
-                    {
-                        imageActions.Mode = ImageMode.Zoom;
-                    }
-                }
+                //convert query string into image actions
+                var imageActions = ConvertQueryStringToImageActions(uri.Query);
 
                 //if there are no actions to perform then let the normal flow deal with it
                 if (imageActions.HasAnyActions() == false)
@@ -155,6 +89,70 @@ namespace CommonImageActions.AspNetCore
             }
             // Call the next delegate/middleware in the pipeline
             await _next(context);
+        }
+
+        public ImageActions ConvertQueryStringToImageActions(string queryString)
+        {
+            //initialize image actions
+            var imageActions = new ImageActions();
+
+            //if there are no paramters then let the normal flow deal with it
+            var query = HttpUtility.ParseQueryString(queryString);
+            if (query.Count == 0)
+            {
+                return imageActions;
+            }
+
+            //convert url parameters into an image action
+            var widthString = query["width"] ?? query["w"];
+            if (int.TryParse(widthString, out int width))
+            {
+                imageActions.Width = width;
+            }
+
+            var heightString = query["height"] ?? query["h"];
+            if (int.TryParse(heightString, out int height))
+            {
+                imageActions.Height = height;
+            }
+
+            var pageString = query["Page"] ?? query["p"];
+            if (int.TryParse(pageString, out int page))
+            {
+                imageActions.Page = page;
+            }
+
+            var pdfPasswordString = query["Password"] ?? query["pw"];
+            imageActions.PdfPassword = pdfPasswordString;
+
+            var formatString = query["format"] ?? query["f"];
+            if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
+            {
+                imageActions.Format = format;
+            }
+
+            var modeString = query["mode"] ?? query["m"];
+            if (Enum.TryParse<ImageMode>(modeString, true, out var mode))
+            {
+                imageActions.Mode = mode;
+            }
+
+            //add unofficial support for other interpretations of mode based on feedback
+            //example: I like zoom, but others feel it should be call crop, so just fall back to zoom
+            //         as a general catchall for any other interpretations
+            if (imageActions.Mode.HasValue == false && !string.IsNullOrEmpty(modeString))
+            {
+                if (string.Equals(modeString, "pad", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    imageActions.Mode = ImageMode.Fit;
+                }
+                else
+                {
+                    imageActions.Mode = ImageMode.Zoom;
+                }
+            }
+
+            return imageActions;
         }
 
         private string GetImageExtension(string path)

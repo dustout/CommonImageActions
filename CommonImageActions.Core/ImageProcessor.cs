@@ -244,7 +244,8 @@ namespace CommonImageActions.Core
             switch (imageActions.Mode)
             {
                 //depend on canvas size
-                case ImageMode.None:
+                default:
+                case null:
                 case ImageMode.Stretch:
                 case ImageMode.Max:
                     if (isOddRotation)
@@ -284,8 +285,6 @@ namespace CommonImageActions.Core
                     var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
                     canvas.DrawImage(newImage, offsetX, offsetY, scaledWidth, scaledHeight);
                     break;
-
-                default: throw new NotImplementedException();
             }
 
             //set export format
