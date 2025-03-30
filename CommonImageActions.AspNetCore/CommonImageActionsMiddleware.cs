@@ -43,6 +43,14 @@ namespace CommonImageActions.AspNetCore
 
             if (context.Request.Path.StartsWithSegments(_options.PathToWatch))
             {
+                //check if request is for a supported image
+                var imageExtension = GetImageExtension(context.Request.Path);
+                if(imageExtension == null)
+                {
+                    await _next(context);
+                    return;
+                }
+
                 //conver url into a Uri
                 var url = $"{context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
                 var uri = new Uri(url);
@@ -52,7 +60,6 @@ namespace CommonImageActions.AspNetCore
                 var imageFileRelativePath = Path.Combine(segments);
                 var webRootPath = Path.Combine(_env.ContentRootPath, "wwwroot");
                 var imageFilePath = Path.Combine(webRootPath, imageFileRelativePath);
-                var imageExtension = GetImageExtension(imageFilePath);
                 var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
                 var isRemoteServer = !string.IsNullOrEmpty(_options.RemoteFileServerUrl);
 
