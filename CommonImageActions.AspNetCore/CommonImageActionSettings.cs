@@ -5,7 +5,25 @@ namespace CommonImageActions.AspNetCore
 {
     public class CommonImageActionSettings
     {
-        public string PathToWatch { get; set; } = "/";
+        private string _pathToWatch = "";
+        public string PathToWatch {
+            get
+            {
+                return this._pathToWatch;
+            }
+
+            set
+            {
+                if(value == "/" || value == null)
+                {
+                    this._pathToWatch = String.Empty;
+                }
+                else
+                {
+                    this._pathToWatch = $"/{value.TrimStart('/').TrimEnd('/')}";
+                }
+            }
+        }
 
         public string RemoteFileServerUrl { get; set; }
 
