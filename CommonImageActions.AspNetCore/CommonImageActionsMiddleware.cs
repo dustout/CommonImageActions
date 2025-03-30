@@ -62,7 +62,7 @@ namespace CommonImageActions.AspNetCore
                 }
 
                 //check if is pdf
-                var isPdf = string.Equals(imageExtension, ".PDF", StringComparison.OrdinalIgnoreCase);
+                var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
 
                 using var inputStream = File.OpenRead(imageFilePath);
                 var resultingData = await ImageProcessor.ProcessImageAsync(inputStream, imageActions, isPdf);
