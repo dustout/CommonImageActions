@@ -231,7 +231,14 @@ namespace CommonImageActions.Core
                 }
             }
 
-
+            //calculate the offset
+            var rotationOffsetX = 0f;
+            var rotationOffsetY = 0f;
+            if (isOddRotation)
+            {
+                rotationOffsetY = (imageActions.Height.Value - imageActions.Width.Value) / 2;
+                rotationOffsetX = rotationOffsetY * -1;
+            }
             
             //write to the canvas
             switch (imageActions.Mode)
@@ -242,12 +249,7 @@ namespace CommonImageActions.Core
                 case ImageMode.Max:
                     if (isOddRotation)
                     {
-                        var offset = ((imageActions.Height.Value / 2) - (imageActions.Width.Value) / 2);
-                        canvas.DrawImage(newImage,
-                            offset*-1,
-                            offset,
-                            imageActions.Height.Value, 
-                            imageActions.Width.Value);
+                        canvas.DrawImage(newImage, rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
                     }
                     else
                     {
