@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace CommonImageActions.Core
 {
-    public class ImageProcessor
+    public static class ImageProcessor
     {
         public static int JpegQuality = 90;
         public static int GifQuality = 90;
