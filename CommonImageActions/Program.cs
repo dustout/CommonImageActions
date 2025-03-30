@@ -3,17 +3,17 @@ using CommonImageActions.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-app.UseUrlImageActions(
+app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/test"
     }
 );
 
-app.UseUrlImageActions(
+app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/abc"
+        PathToWatch = "/abc",
     }
 );
 

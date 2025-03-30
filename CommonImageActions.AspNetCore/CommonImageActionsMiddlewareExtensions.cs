@@ -8,7 +8,7 @@ namespace CommonImageActions.AspNetCore
 {
     public static class CommonImageActionsMiddlewareExtensions
     {
-        public static IApplicationBuilder UseUrlImageActions(
+        public static IApplicationBuilder UseCommonImageActions(
             this IApplicationBuilder builder, CommonImageActionSettings? settings)
         {
             IOptions<CommonImageActionSettings> options;
