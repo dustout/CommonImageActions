@@ -11,6 +11,8 @@ namespace CommonImageActions.Core
 
         public int? Page { get; set; }
 
+        public string PdfPassword { get; set; }
+
         public SKEncodedImageFormat? Format { get; set; }
 
         public ImageMode Mode { get; set; } = ImageMode.None;

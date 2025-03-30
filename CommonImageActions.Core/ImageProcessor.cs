@@ -48,7 +48,7 @@ namespace CommonImageActions.Core
                 var handle = GCHandle.Alloc(imageData, GCHandleType.Pinned);
                 try
                 {
-                    var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), imageData.Length, null);
+                    var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), imageData.Length, actions.PdfPassword);
                     if (pdfDocument == null)
                     {
                         throw new NotImplementedException("Error loading pdf");
