@@ -186,6 +186,7 @@ namespace CommonImageActions.Core
             // Create a new bitmap with the new dimensions
             var skBmp = new SkiaBitmapExportContext(imageActions.Width.Value, imageActions.Height.Value, 1.0f);
             var canvas = skBmp.Canvas;
+            bool isOddRotation = false;
 
             //use the exif data to rotate the image
             if (codec != null)
@@ -210,22 +211,28 @@ namespace CommonImageActions.Core
 
                     case SKEncodedOrigin.LeftTop:
                         canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.RightTop:
                         canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.RightBottom:
                         canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.LeftBottom:
                         canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        isOddRotation = true;
                         break;
                 }
             }
 
+
+            
             //write to the canvas
             switch (imageActions.Mode)
             {
@@ -233,7 +240,19 @@ namespace CommonImageActions.Core
                 case ImageMode.None:
                 case ImageMode.Stretch:
                 case ImageMode.Max:
-                    canvas.DrawImage(newImage, 0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    if (isOddRotation)
+                    {
+                        var offset = ((imageActions.Height.Value / 2) - (imageActions.Width.Value) / 2);
+                        canvas.DrawImage(newImage,
+                            offset*-1,
+                            offset,
+                            imageActions.Height.Value, 
+                            imageActions.Width.Value);
+                    }
+                    else
+                    {
+                        canvas.DrawImage(newImage, 0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    }
                     break;
 
                 //fit within canvas
