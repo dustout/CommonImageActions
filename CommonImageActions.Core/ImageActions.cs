@@ -15,7 +15,7 @@ namespace CommonImageActions.Core
 
         public SKEncodedImageFormat? Format { get; set; }
 
-        public ImageMode Mode { get; set; } = ImageMode.None;
+        public ImageMode? Mode { get; set; };
 
         public bool HasAnyActions()
         {
