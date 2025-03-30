@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -43,6 +44,74 @@ namespace CommonImageActions.Core
                     fpdfview.FPDF_InitLibrary();
                     isPdfiumInitalized = true;
                 }
+
+                var handle = GCHandle.Alloc(imageData, GCHandleType.Pinned);
+                try
+                {
+                    var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), imageData.Length, null);
+                    if (pdfDocument == null)
+                    {
+                        throw new NotImplementedException("Error loading pdf");
+                    }
+
+                    //make sure there is at least one page
+                    var pageCount = fpdfview.FPDF_GetPageCount(pdfDocument);
+                    if (pageCount == 0)
+                    {
+                        throw new NotImplementedException("Error loading pdf");
+                    }
+
+                    //set requested page, if not requested default to first page
+                    //also offset by 1 for usability to match readers
+                    var requestedPage = 0;
+                    if (actions.Page.HasValue && actions.Page <= pageCount && actions.Page > 0)
+                    {
+                        requestedPage = actions.Page.Value - 1;
+                    }
+
+                    //get the first page
+                    var pdfPage = fpdfview.FPDF_LoadPage(pdfDocument, requestedPage);
+                    if (pdfPage == null)
+                    {
+                        throw new NotImplementedException("Error loading pdf");
+                    }
+
+                    //get dimensions of the page
+                    var pdfWidth = (int)fpdfview.FPDF_GetPageWidth(pdfPage);
+                    var pdfHeight = (int)fpdfview.FPDF_GetPageHeight(pdfPage);
+
+                    //create a bitmap of the page
+                    var pdfBitmap = fpdfview.FPDFBitmapCreate(pdfWidth, pdfHeight, 0);
+                    fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
+                    fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
+
+                    //get handle to buffer
+                    var buffer = fpdfview.FPDFBitmapGetBuffer(pdfBitmap);
+                    var stride = fpdfview.FPDFBitmapGetStride(pdfBitmap);
+                    var bufferSize = stride * pdfHeight;
+
+                    // Copy data from unmanaged buffer to managed array
+                    byte[] managedArray = new byte[bufferSize];
+                    Marshal.Copy(buffer, managedArray, 0, bufferSize);
+
+                    //clean up the unmanaged memory since there is a copy in managed memory
+                    fpdfview.FPDFBitmapDestroy(pdfBitmap);
+
+                    //convert from BGRA32 format to BMP format
+                    var bmpData = ConvertFromBGRA32ToBmp(managedArray, pdfWidth, pdfHeight);
+
+                    //convert into skia format
+                    using var originalBitmap = SKBitmap.Decode(bmpData);
+                    using var newImage = new SkiaImage(originalBitmap);
+
+                    //process skia image into encoded image
+                    encodedImage = EncodeSkiaImage(newImage, actions);
+                }
+                finally
+                {
+                    handle.Free();
+                }
+
             }
             else
             {
@@ -224,7 +293,7 @@ namespace CommonImageActions.Core
             return encodedImage;
         }
 
-        private byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
+        private static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
         {
             int bytesPerPixel = 4; // BGRA32
 
