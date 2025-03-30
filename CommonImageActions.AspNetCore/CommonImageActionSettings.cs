@@ -26,8 +26,5 @@ namespace CommonImageActions.AspNetCore
 
             ".pdf"
         };
-
-        public static int JpegQuality = 90;
-        public static int GifQuality = 90;
     }
 }
