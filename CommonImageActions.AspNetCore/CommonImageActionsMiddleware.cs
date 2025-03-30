@@ -9,8 +9,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -32,6 +34,13 @@ namespace CommonImageActions.AspNetCore
 
         public async Task InvokeAsync(HttpContext context)
         {
+            //if no path then always ignore
+            if(context.Request.Path.HasValue == false)
+            {
+                await _next(context);
+                return;
+            }
+
             if (context.Request.Path.StartsWithSegments(_options.PathToWatch))
             {
                 //conver url into a Uri
@@ -41,34 +50,74 @@ namespace CommonImageActions.AspNetCore
                 //get file information
                 var segments = uri.Segments.Skip(1).Select(x => x.TrimEnd('/')).ToArray();
                 var imageFileRelativePath = Path.Combine(segments);
-                var imageFilePath = Path.Combine(_env.ContentRootPath, "wwwroot", imageFileRelativePath);
+                var webRootPath = Path.Combine(_env.ContentRootPath, "wwwroot");
+                var imageFilePath = Path.Combine(webRootPath, imageFileRelativePath);
                 var imageExtension = GetImageExtension(imageFilePath);
-
-                //if file does not exist then let normal flow deal with it
-                if (!File.Exists(imageFilePath))
-                {
-                    await _next(context);
-                    return;
-                }
+                var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
+                var isRemoteServer = !string.IsNullOrEmpty(_options.RemoteFileServerUrl);
 
                 //convert query string into image actions
                 var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
+                byte[] imageData = null;
 
-                //if there are no actions to perform then let the normal flow deal with it
-                if (imageActions.HasAnyActions() == false)
+                if (isRemoteServer)
                 {
-                    await _next(context);
-                    return;
+                    //get the server path by removing the path to watch
+                    var serverPath = context.Request.Path.Value.Replace(_options.PathToWatch, string.Empty).TrimStart('/');
+
+                    //clean the remote url so if there is a slash then we remove it 
+                    var cleanedRemoteUrl = _options.RemoteFileServerUrl.TrimEnd('/');
+
+                    //combine them as a request to the server
+                    var imageRemoteUrlPath = new Uri($"{cleanedRemoteUrl}/{serverPath}");
+
+                    //get the image from the remote server
+                    var httpClient = new HttpClient();
+                    var response = await httpClient.GetAsync(imageRemoteUrlPath);
+                    var responseData = await response.Content.ReadAsByteArrayAsync();
+
+                    //if failure then forward the failure
+                    if (response.IsSuccessStatusCode == false)
+                    {
+                        context.Response.StatusCode = (int)response.StatusCode;
+                        await context.Response.Body.WriteAsync(responseData);
+                        return;
+                    }
+
+                    //if no actions then just send the raw file
+                    if (imageActions.HasAnyActions() == false)
+                    {
+                        context.Response.StatusCode = (int)response.StatusCode;
+                        await context.Response.Body.WriteAsync(responseData);
+                        return;
+                    }
+
+                    //get the image data and process it
+                    imageData = ImageProcessor.ProcessImage(responseData, imageActions, isPdf);
+                }
+                else
+                {
+                    //if file does not exist then let normal flow deal with it
+                    if (!File.Exists(imageFilePath))
+                    {
+                        await _next(context);
+                        return;
+                    }
+
+                    //if there are no actions to perform then let the normal flow deal with it
+                    if (imageActions.HasAnyActions() == false)
+                    {
+                        await _next(context);
+                        return;
+                    }
+
+                    //load the image and process it
+                    using var inputStream = File.OpenRead(imageFilePath);
+                    imageData = await ImageProcessor.ProcessImageAsync(inputStream, imageActions, isPdf);
                 }
 
-                //check if is pdf
-                var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
-
-                using var inputStream = File.OpenRead(imageFilePath);
-                var resultingData = await ImageProcessor.ProcessImageAsync(inputStream, imageActions, isPdf);
-
-                //if there is nothing to return then throw exception, this should never happen
-                if (resultingData == null)
+                //if there is nothing to return then something went wrong, throw exception
+                if (imageData == null)
                 {
                     throw new NotImplementedException($"{imageExtension} not supported");
                 }
@@ -84,14 +133,14 @@ namespace CommonImageActions.AspNetCore
                 }
 
                 //send the resulting data
-                await context.Response.Body.WriteAsync(resultingData, 0, resultingData.Length);
+                await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
                 return;
             }
             // Call the next delegate/middleware in the pipeline
             await _next(context);
         }
 
-        public ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)
+        public static ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)
         {
             //initialize image actions
             var imageActions = new ImageActions(defaultImageActions);
