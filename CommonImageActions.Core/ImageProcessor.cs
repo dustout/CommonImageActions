@@ -22,7 +22,7 @@ namespace CommonImageActions.Core
         public static byte[] ProcessImage(byte[] imageData, ImageActions actions, bool isPdf = false)
         {
             //placeholder for final image
-            SKData? encodedImage = null;
+            SKData encodedImage = null;
 
             if (isPdf)
             {
@@ -137,7 +137,7 @@ namespace CommonImageActions.Core
             return ProcessImage(imageData, actions, isPdf);
         }
 
-        private static SKData? EncodeSkiaImage(SkiaImage? newImage, ImageActions imageActions, SKCodec? codec = null)
+        private static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
         {
             //make sure image was loaded successfully
             if (newImage == null)
@@ -308,7 +308,7 @@ namespace CommonImageActions.Core
             imageActions.Format = exportImageType;
 
             //set encoding quality
-            SKData? encodedImage = null;
+            SKData encodedImage = null;
             switch (exportImageType)
             {
                 default:

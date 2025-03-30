@@ -9,7 +9,7 @@ namespace CommonImageActions.AspNetCore
     public static class CommonImageActionsMiddlewareExtensions
     {
         public static IApplicationBuilder UseCommonImageActions(
-            this IApplicationBuilder builder, CommonImageActionSettings? settings)
+            this IApplicationBuilder builder, CommonImageActionSettings settings = null)
         {
             IOptions<CommonImageActionSettings> options;
             if (settings == null)
