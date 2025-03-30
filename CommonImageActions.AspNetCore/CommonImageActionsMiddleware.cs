@@ -106,24 +106,19 @@ namespace CommonImageActions.AspNetCore
                 }
 
                 //add unofficial support for other interpretations of mode based on feedback
-                //example: I like zoom, but others feel it should be call crop
-                if(string.Equals(modeString, "pad", StringComparison.InvariantCultureIgnoreCase))
+                //example: I like zoom, but others feel it should be call crop, so just fall back to zoom
+                //         as a general catchall for any other interpretations
+                if (imageActions.Mode.HasValue == false && !string.IsNullOrEmpty(modeString))
                 {
-                    imageActions.Mode = ImageMode.Fit;
+                    if (string.Equals(modeString, "pad", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        imageActions.Mode = ImageMode.Fit;
+                    }
+                    else
+                    {
+                        imageActions.Mode = ImageMode.Zoom;
+                    }
                 }
-                else if (string.Equals(modeString, "crop", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    imageActions.Mode = ImageMode.Zoom;
-                }
-                else if (string.Equals(modeString, "carve", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    imageActions.Mode = ImageMode.Zoom;
-                }
-                else if (string.Equals(modeString, "min", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    imageActions.Mode = ImageMode.Zoom;
-                }
-
 
                 //if there are no actions to perform then let the normal flow deal with it
                 if (imageActions.HasAnyActions() == false)
