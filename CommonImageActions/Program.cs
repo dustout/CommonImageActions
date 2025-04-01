@@ -13,6 +13,13 @@ app.UseCommonImageActions(
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
+        PathToWatch = "/two/deep"
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
         PathToWatch = "/remote",
         RemoteFileServerUrl = "https://dustingamester.com/img/"
     }
