@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <Title>Common Image Actions</Title>
     <PackageProjectUrl>https://github.com/dustout/CommonImageActions</PackageProjectUrl>
     <RepositoryUrl>https://github.com/dustout/CommonImageActions</RepositoryUrl>
