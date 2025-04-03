@@ -366,25 +366,20 @@ namespace CommonImageActions.Core
             if (!string.IsNullOrEmpty(imageActions.Text))
             {
                 var myFont = new Font("Arial", weight: 800);
-                var myFontSize = imageActions.Height.Value;
+                var myFontSize = (int)(imageActions.Height.Value*0.85);
                 canvas.Font = myFont;
 
                 //calculate string size where height is image height to get scale of text
                 var textSize = canvas.GetStringSize(imageActions.Text, myFont, myFontSize);
+
+                //specify the max width that is wanted
                 var maxWidth = imageActions.Width.Value * 0.75;
 
-                // back calculate the text size so it will fit in the space
-                // string height 500
-                // string width 900
-                // image width 300
-                // image height 500
                 // it needs to fit in the image, so if it is too narrow then we need to shrink down the font
-                // newFontSize = (imageActions.Height.Value / textSize.Height) * myFontSize;
                 if (textSize.Width > maxWidth)
                 {
                     myFontSize = (int)((maxWidth / textSize.Width) * myFontSize);
                 }
-
 
                 //calculate the text size again with the new font size
                 var point = new Point(
