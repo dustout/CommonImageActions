@@ -141,14 +141,14 @@ namespace CommonImageActions.Core
 
         public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions, bool isPdf = false)
         {
-            if(actions == null)
+            if (actions == null)
             {
                 throw new ArgumentNullException(nameof(actions));
             }
 
             //copy stream into memory asyncronously
             byte[] imageData = null;
-            using(var ms = new MemoryStream())
+            using (var ms = new MemoryStream())
             {
                 await imageStream.CopyToAsync(ms);
                 imageData = ms.ToArray();
@@ -214,11 +214,12 @@ namespace CommonImageActions.Core
             var canvas = skBmp.Canvas;
 
             //if no shape specified, but a corner radius is then set shape to rounded rectangle
-            if(imageActions.Shape.HasValue == false && imageActions.CornerRadius.HasValue)
+            if (imageActions.Shape.HasValue == false && imageActions.CornerRadius.HasValue)
             {
                 imageActions.Shape = ImageShape.RoundedRectangle;
             }
 
+            //if a shape is specified then clip the canvas to that shape
             if (imageActions.Shape.HasValue)
             {
                 var paint = new SKPaint
@@ -237,7 +238,7 @@ namespace CommonImageActions.Core
                     a.AppendCircle(centerX, centerY, radius);
                     canvas.ClipPath(a);
                 }
-                else if(imageActions.Shape == ImageShape.Ellipse)
+                else if (imageActions.Shape == ImageShape.Ellipse)
                 {
                     var a = new PathF();
                     var centerX = imageActions.Width.Value / 2;
@@ -245,7 +246,7 @@ namespace CommonImageActions.Core
                     a.AppendEllipse(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     canvas.ClipPath(a);
                 }
-                else if(imageActions.Shape == ImageShape.RoundedRectangle)
+                else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
                     var a = new PathF();
                     if (imageActions.CornerRadius.HasValue)
@@ -260,8 +261,7 @@ namespace CommonImageActions.Core
                 }
             }
 
-
-                bool isOddRotation = false;
+            bool isOddRotation = false;
 
             //use the exif data to rotate the image
             if (codec != null)
@@ -314,7 +314,7 @@ namespace CommonImageActions.Core
                 rotationOffsetY = (imageActions.Height.Value - imageActions.Width.Value) / 2;
                 rotationOffsetX = rotationOffsetY * -1;
             }
-            
+
             //write to the canvas
             switch (imageActions.Mode)
             {
@@ -362,7 +362,7 @@ namespace CommonImageActions.Core
                     break;
             }
 
-            
+
 
             //set export format
             var exportImageType = SKEncodedImageFormat.Png;
