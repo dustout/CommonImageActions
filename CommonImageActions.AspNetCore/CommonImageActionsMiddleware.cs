@@ -193,6 +193,9 @@ namespace CommonImageActions.AspNetCore
             var pdfPasswordString = query["password"] ?? query["pw"];
             imageActions.PdfPassword = pdfPasswordString;
 
+            var textString = query["text"] ?? query["t"];
+            imageActions.Text = textString;
+
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
             {

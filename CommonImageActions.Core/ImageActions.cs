@@ -35,6 +35,8 @@ namespace CommonImageActions.Core
 
         public string PdfPassword { get; set; }
 
+        public string Text { get; set; }
+
         public SKEncodedImageFormat? Format { get; set; }
 
         public ImageMode? Mode { get; set; }

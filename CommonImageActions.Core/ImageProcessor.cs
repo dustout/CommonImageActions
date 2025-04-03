@@ -362,7 +362,38 @@ namespace CommonImageActions.Core
                     break;
             }
 
+            //if there is text to draw then do it
+            if (!string.IsNullOrEmpty(imageActions.Text))
+            {
+                var myFont = new Font("Arial", weight: 800);
+                var myFontSize = imageActions.Height.Value;
+                canvas.Font = myFont;
 
+                //calculate string size where height is image height to get scale of text
+                var textSize = canvas.GetStringSize(imageActions.Text, myFont, myFontSize);
+                var maxWidth = imageActions.Width.Value * 0.75;
+
+                // back calculate the text size so it will fit in the space
+                // string height 500
+                // string width 900
+                // image width 300
+                // image height 500
+                // it needs to fit in the image, so if it is too narrow then we need to shrink down the font
+                // newFontSize = (imageActions.Height.Value / textSize.Height) * myFontSize;
+                if (textSize.Width > maxWidth)
+                {
+                    myFontSize = (int)((maxWidth / textSize.Width) * myFontSize);
+                }
+
+                var point = new Point(
+                    x: (skBmp.Width - textSize.Width) / 2,
+                    y: (skBmp.Height - textSize.Height) / 2);
+                var myTextRectangle = new Rect(point, textSize);
+                canvas.FontSize = myFontSize;
+                canvas.FontColor = Colors.White;
+                canvas.DrawString(imageActions.Text, myTextRectangle, HorizontalAlignment.Center, VerticalAlignment.Center, TextFlow.OverflowBounds);
+
+            }
 
             //set export format
             var exportImageType = SKEncodedImageFormat.Png;
