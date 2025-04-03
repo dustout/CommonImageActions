@@ -1,4 +1,5 @@
-﻿using Microsoft.Maui.Graphics.Skia;
+﻿using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Graphics.Skia;
 using PDFiumCore;
 using SkiaSharp;
 using System;
@@ -16,6 +17,7 @@ namespace CommonImageActions.Core
     {
         public static int JpegQuality = 90;
         public static int GifQuality = 90;
+        public static int CornerRadius = 10;
 
         private static bool isPdfiumInitalized = false;
 
@@ -210,7 +212,56 @@ namespace CommonImageActions.Core
             // Create a new bitmap with the new dimensions
             var skBmp = new SkiaBitmapExportContext(imageActions.Width.Value, imageActions.Height.Value, 1.0f);
             var canvas = skBmp.Canvas;
-            bool isOddRotation = false;
+
+            //if no shape specified, but a corner radius is then set shape to rounded rectangle
+            if(imageActions.Shape.HasValue == false && imageActions.CornerRadius.HasValue)
+            {
+                imageActions.Shape = ImageShape.RoundedRectangle;
+            }
+
+            if (imageActions.Shape.HasValue)
+            {
+                var paint = new SKPaint
+                {
+                    IsAntialias = true,
+                    BlendMode = SKBlendMode.SrcIn
+                };
+
+                if (imageActions.Shape == ImageShape.Circle)
+                {
+                    var radius = Math.Min(imageActions.Width.Value, imageActions.Height.Value) / 2;
+                    var centerX = imageActions.Width.Value / 2;
+                    var centerY = imageActions.Height.Value / 2;
+
+                    var a = new PathF();
+                    a.AppendCircle(centerX, centerY, radius);
+                    canvas.ClipPath(a);
+                }
+                else if(imageActions.Shape == ImageShape.Ellipse)
+                {
+                    var a = new PathF();
+                    var centerX = imageActions.Width.Value / 2;
+                    var centerY = imageActions.Height.Value / 2;
+                    a.AppendEllipse(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    canvas.ClipPath(a);
+                }
+                else if(imageActions.Shape == ImageShape.RoundedRectangle)
+                {
+                    var a = new PathF();
+                    if (imageActions.CornerRadius.HasValue)
+                    {
+                        a.AppendRoundedRectangle(0, 0, imageActions.Width.Value, imageActions.Height.Value, imageActions.CornerRadius.Value);
+                    }
+                    else
+                    {
+                        a.AppendRoundedRectangle(0, 0, imageActions.Width.Value, imageActions.Height.Value, CornerRadius);
+                    }
+                    canvas.ClipPath(a);
+                }
+            }
+
+
+                bool isOddRotation = false;
 
             //use the exif data to rotate the image
             if (codec != null)
@@ -310,6 +361,8 @@ namespace CommonImageActions.Core
                     canvas.DrawImage(newImage, offsetX, offsetY, scaledWidth, scaledHeight);
                     break;
             }
+
+            
 
             //set export format
             var exportImageType = SKEncodedImageFormat.Png;

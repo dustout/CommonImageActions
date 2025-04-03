@@ -29,6 +29,10 @@ namespace CommonImageActions.Core
 
         public int? Page { get; set; }
 
+        public ImageShape? Shape { get; set; }
+
+        public int? CornerRadius { get; set; }
+
         public string PdfPassword { get; set; }
 
         public SKEncodedImageFormat? Format { get; set; }

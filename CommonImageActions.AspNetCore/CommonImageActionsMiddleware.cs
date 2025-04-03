@@ -184,7 +184,13 @@ namespace CommonImageActions.AspNetCore
                 imageActions.Page = page;
             }
 
-            var pdfPasswordString = query["Password"] ?? query["pw"];
+            var cornerRadiusString = query["corner"] ?? query["c"];
+            if (int.TryParse(cornerRadiusString, out int cornerRadius))
+            {
+                imageActions.CornerRadius = cornerRadius;
+            }
+
+            var pdfPasswordString = query["password"] ?? query["pw"];
             imageActions.PdfPassword = pdfPasswordString;
 
             var formatString = query["format"] ?? query["f"];
@@ -197,6 +203,12 @@ namespace CommonImageActions.AspNetCore
             if (Enum.TryParse<ImageMode>(modeString, true, out var mode))
             {
                 imageActions.Mode = mode;
+            }
+
+            var shapeString = query["shape"] ?? query["s"];
+            if (Enum.TryParse<ImageShape>(shapeString, true, out var shape))
+            {
+                imageActions.Shape = shape;
             }
 
             //add unofficial support for other interpretations of mode based on feedback
