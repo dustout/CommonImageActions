@@ -13,9 +13,6 @@
     <Version>1.0.1</Version>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <Optimize>True</Optimize>
-  </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\LICENSE.txt">
