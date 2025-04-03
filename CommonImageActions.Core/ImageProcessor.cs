@@ -385,12 +385,38 @@ namespace CommonImageActions.Core
                     myFontSize = (int)((maxWidth / textSize.Width) * myFontSize);
                 }
 
+
+                //calculate the text size again with the new font size
                 var point = new Point(
                     x: (skBmp.Width - textSize.Width) / 2,
                     y: (skBmp.Height - textSize.Height) / 2);
                 var myTextRectangle = new Rect(point, textSize);
                 canvas.FontSize = myFontSize;
-                canvas.FontColor = Colors.White;
+
+                //set the text color
+                if (!string.IsNullOrEmpty(imageActions.TextColor))
+                {
+                    //try regular
+                    if (Color.TryParse(imageActions.TextColor, out var newColor))
+                    {
+                        canvas.FontColor = newColor;
+                    }
+                    //try hex
+                    else if (Color.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
+                    {
+                        canvas.FontColor = newColorFromHex;
+                    }
+                    //fall back to white if they both fail
+                    else
+                    {
+                        canvas.FontColor = Colors.White;
+                    }
+                }
+                else
+                {
+                    canvas.FontColor = Colors.White;
+                }
+
                 canvas.DrawString(imageActions.Text, myTextRectangle, HorizontalAlignment.Center, VerticalAlignment.Center, TextFlow.OverflowBounds);
 
             }

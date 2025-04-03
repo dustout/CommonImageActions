@@ -196,6 +196,9 @@ namespace CommonImageActions.AspNetCore
             var textString = query["text"] ?? query["t"];
             imageActions.Text = textString;
 
+            var textColorString = query["textColor"] ?? query["tc"];
+            imageActions.TextColor = textColorString;
+
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
             {
