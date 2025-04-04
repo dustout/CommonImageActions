@@ -37,6 +37,8 @@ namespace CommonImageActions.Core
 
         public string Text { get; set; }
 
+        public bool? AsInitials { get; set; }
+
         public string TextColor { get; set; }
 
         public string VirtualImageColor { get; set; }

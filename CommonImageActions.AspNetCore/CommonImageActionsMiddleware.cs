@@ -215,6 +215,12 @@ namespace CommonImageActions.AspNetCore
             var textString = query["text"] ?? query["t"];
             imageActions.Text = textString;
 
+            var asInitialsString = query["asInitials"] ?? query["in"];
+            if (Boolean.TryParse(asInitialsString, out var asInitials))
+            {
+                imageActions.AsInitials = asInitials;
+            }
+
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 

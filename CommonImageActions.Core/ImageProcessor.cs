@@ -9,6 +9,7 @@ using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace CommonImageActions.Core
@@ -450,12 +451,19 @@ namespace CommonImageActions.Core
             //if there is text to draw then do it
             if (!string.IsNullOrEmpty(imageActions.Text))
             {
+                var textToPrint = imageActions.Text;
+
+                if (imageActions.AsInitials.HasValue && imageActions.AsInitials.Value == true)
+                {
+                    textToPrint = GetInitials(imageActions.Text);
+                }
+
                 var myFont = new Font("Arial", weight: 800);
                 var myFontSize = (int)(imageActions.Height.Value*0.85);
                 canvas.Font = myFont;
 
                 //calculate string size where height is image height to get scale of text
-                var textSize = canvas.GetStringSize(imageActions.Text, myFont, myFontSize);
+                var textSize = canvas.GetStringSize(textToPrint, myFont, myFontSize);
 
                 //specify the max width that is wanted
                 var maxWidth = imageActions.Width.Value * 0.75;
@@ -497,7 +505,7 @@ namespace CommonImageActions.Core
                     canvas.FontColor = Colors.White;
                 }
 
-                canvas.DrawString(imageActions.Text, myTextRectangle, HorizontalAlignment.Center, VerticalAlignment.Center, TextFlow.OverflowBounds);
+                canvas.DrawString(textToPrint, myTextRectangle, HorizontalAlignment.Center, VerticalAlignment.Center, TextFlow.OverflowBounds);
 
             }
 
@@ -535,6 +543,27 @@ namespace CommonImageActions.Core
             return encodedImage;
         }
 
+        public static string GetInitials(string input)
+        {
+            // Use a regular expression to split the input into words
+            var words = Regex.Split(input, @"(?<!^)(?=[A-Z])|[_\s]+");
+
+            // Extract the first letter of each word
+            var initials = string.Empty;
+            foreach (var word in words)
+            {
+                if (!string.IsNullOrEmpty(word))
+                {
+                    initials += word[0];
+                    if (initials.Length == 2)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return initials.ToUpper();
+        }
         private static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
         {
             int bytesPerPixel = 4; // BGRA32
