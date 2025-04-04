@@ -21,7 +21,17 @@ namespace CommonImageActions.Core
 
         private static bool isPdfiumInitalized = false;
 
-        public static byte[] ProcessImage(byte[] imageData, ImageActions actions, bool isPdf = false)
+        public static byte[] ProcessPdf(byte[] imageData, ImageActions actions)
+        {
+            return ProcessHelper(imageData, actions, true);
+        }
+
+        public static byte[] ProcessImage(byte[] imageData, ImageActions actions)
+        {
+            return ProcessHelper(imageData, actions, false);
+        }
+
+        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isPdf = false)
         {
             //placeholder for final image
             SKData encodedImage = null;
@@ -139,7 +149,7 @@ namespace CommonImageActions.Core
             return encodedImage.ToArray();
         }
 
-        public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions, bool isPdf = false)
+        public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions)
         {
             if (actions == null)
             {
@@ -154,7 +164,25 @@ namespace CommonImageActions.Core
                 imageData = ms.ToArray();
             }
 
-            return ProcessImage(imageData, actions, isPdf);
+            return ProcessHelper(imageData, actions, false);
+        }
+
+        public async static Task<byte[]> ProcessPdfAsync(Stream imageStream, ImageActions actions)
+        {
+            if (actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions));
+            }
+
+            //copy stream into memory asyncronously
+            byte[] imageData = null;
+            using (var ms = new MemoryStream())
+            {
+                await imageStream.CopyToAsync(ms);
+                imageData = ms.ToArray();
+            }
+
+            return ProcessHelper(imageData, actions, true);
         }
 
         private static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)

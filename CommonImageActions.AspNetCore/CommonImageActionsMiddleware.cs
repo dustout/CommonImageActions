@@ -100,7 +100,14 @@ namespace CommonImageActions.AspNetCore
                     }
 
                     //get the image data and process it
-                    imageData = ImageProcessor.ProcessImage(responseData, imageActions, isPdf);
+                    if (isPdf)
+                    {
+                        imageData = ImageProcessor.ProcessPdf(responseData, imageActions);
+                    }
+                    else
+                    {
+                        imageData = ImageProcessor.ProcessImage(responseData, imageActions);
+                    }
                 }
                 else
                 {
@@ -126,7 +133,14 @@ namespace CommonImageActions.AspNetCore
 
                     //load the image and process it
                     using var inputStream = File.OpenRead(imageFilePath);
-                    imageData = await ImageProcessor.ProcessImageAsync(inputStream, imageActions, isPdf);
+                    if (isPdf)
+                    {
+                        imageData = await ImageProcessor.ProcessPdfAsync(inputStream, imageActions);
+                    }
+                    else
+                    {
+                        imageData = await ImageProcessor.ProcessImageAsync(inputStream, imageActions);
+                    }
                 }
 
                 //if there is nothing to return then something went wrong, throw exception
