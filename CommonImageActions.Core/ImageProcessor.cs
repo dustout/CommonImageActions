@@ -22,6 +22,8 @@ namespace CommonImageActions.Core
 
         private static bool isPdfiumInitalized = false;
 
+        public static List<string> BackgroundColours = new List<string>{ "495057", "f03e3e", "d6336c", "ae3ec9", "7048e8", "4263eb", "1c7ed6", "1098ad", "0ca678", "37b24d", "74b816", "f59f00", "f76707" };
+
         public static byte[] ProcessPdf(byte[] imageData, ImageActions actions)
         {
             return ProcessHelper(imageData, actions, isPdf:true);
@@ -43,7 +45,11 @@ namespace CommonImageActions.Core
             SKData encodedImage = null;
 
             //if virtual image color is set then treat whole process as virtual
-            if (string.IsNullOrEmpty(actions.VirtualImageColor) == false)
+            if (string.IsNullOrEmpty(actions.ImageColor) == false)
+            {
+                isVirtual = true;
+            }
+            else if(actions.ChooseImageColorFromTextValue.HasValue && actions.ChooseImageColorFromTextValue.Value == true)
             {
                 isVirtual = true;
             }
@@ -148,19 +154,39 @@ namespace CommonImageActions.Core
                 Color virtualImageColor = null;
 
                 //set the text color
-                if (!string.IsNullOrEmpty(actions.VirtualImageColor))
+                if (!string.IsNullOrEmpty(actions.ImageColor))
                 {
                     //try regular
-                    if (Color.TryParse(actions.VirtualImageColor, out var newColor))
+                    if (Color.TryParse(actions.ImageColor, out var newColor))
                     {
                         virtualImageColor = newColor;
                     }
                     //try hex
-                    else if (Color.TryParse($"#{actions.VirtualImageColor}", out var newColorFromHex))
+                    else if (Color.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
                     {
                         virtualImageColor = newColorFromHex;
                     }
                     //fall back to white if they both fail
+                    else
+                    {
+                        virtualImageColor = Colors.Black;
+                    }
+                }
+                else if (actions.ChooseImageColorFromTextValue.HasValue
+                    && actions.ChooseImageColorFromTextValue.Value == true
+                    && string.IsNullOrEmpty(actions.Text) == false)
+                {
+                    var hashValue = CalculateHash(actions.Text);
+                    var backgroundIndex = (int)(hashValue % (UInt64)BackgroundColours.Count);
+                    var backgroundColor = BackgroundColours[backgroundIndex];
+                    if(backgroundColor != null)
+                    {
+                        backgroundColor = $"#{backgroundColor}";
+                    }
+                    if (Color.TryParse(backgroundColor, out var newColor))
+                    {
+                        virtualImageColor = newColor;
+                    }
                     else
                     {
                         virtualImageColor = Colors.Black;
@@ -541,6 +567,17 @@ namespace CommonImageActions.Core
             }
 
             return encodedImage;
+        }
+
+        private static UInt64 CalculateHash(string read)
+        {
+            UInt64 hashedValue = 3074457345618258791ul;
+            for (int i = 0; i < read.Length; i++)
+            {
+                hashedValue += read[i];
+                hashedValue *= 3074457345618258799ul;
+            }
+            return hashedValue;
         }
 
         public static string GetInitials(string input)

@@ -221,11 +221,17 @@ namespace CommonImageActions.AspNetCore
                 imageActions.AsInitials = asInitials;
             }
 
+            var asUseRandomColorString = query["colorFromText"] ?? query["ft"];
+            if (Boolean.TryParse(asUseRandomColorString, out var asUseRandomColor))
+            {
+                imageActions.ChooseImageColorFromTextValue = asUseRandomColor;
+            }
+
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 
             var virtualImageColorString = query["virtualColor"] ?? query["c"];
-            imageActions.VirtualImageColor = virtualImageColorString;
+            imageActions.ImageColor = virtualImageColorString;
             
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))

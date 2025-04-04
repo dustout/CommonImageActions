@@ -20,6 +20,13 @@ namespace CommonImageActions.Core
                 PdfPassword = defaults.PdfPassword;
                 Format = defaults.Format;
                 Mode = defaults.Mode;
+                Shape = defaults.Shape;
+                CornerRadius = defaults.CornerRadius;
+                Text = defaults.Text;
+                AsInitials = defaults.AsInitials;
+                TextColor = defaults.TextColor;
+                ImageColor = defaults.ImageColor;
+                ChooseImageColorFromTextValue = defaults.ChooseImageColorFromTextValue;
             }
         }
 
@@ -41,7 +48,9 @@ namespace CommonImageActions.Core
 
         public string TextColor { get; set; }
 
-        public string VirtualImageColor { get; set; }
+        public string ImageColor { get; set; }
+
+        public bool? ChooseImageColorFromTextValue { get; set;}
 
         public SKEncodedImageFormat? Format { get; set; }
 
