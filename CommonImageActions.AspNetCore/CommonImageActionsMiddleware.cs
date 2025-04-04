@@ -203,7 +203,7 @@ namespace CommonImageActions.AspNetCore
                 imageActions.Page = page;
             }
 
-            var cornerRadiusString = query["corner"] ?? query["c"];
+            var cornerRadiusString = query["corner"] ?? query["cr"];
             if (int.TryParse(cornerRadiusString, out int cornerRadius))
             {
                 imageActions.CornerRadius = cornerRadius;
@@ -224,7 +224,7 @@ namespace CommonImageActions.AspNetCore
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 
-            var virtualImageColorString = query["virtualColor"] ?? query["vc"];
+            var virtualImageColorString = query["virtualColor"] ?? query["c"];
             imageActions.VirtualImageColor = virtualImageColorString;
             
             var formatString = query["format"] ?? query["f"];
