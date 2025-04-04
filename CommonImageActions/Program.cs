@@ -20,6 +20,14 @@ app.UseCommonImageActions(
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
+        PathToWatch = "/virtual",
+        IsVirtual = true
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
         PathToWatch = "/remote",
         RemoteFileServerUrl = "https://dustingamester.com/img/"
     }

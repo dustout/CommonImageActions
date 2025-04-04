@@ -39,6 +39,8 @@ namespace CommonImageActions.Core
 
         public string TextColor { get; set; }
 
+        public string VirtualImageColor { get; set; }
+
         public SKEncodedImageFormat? Format { get; set; }
 
         public ImageMode? Mode { get; set; }

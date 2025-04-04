@@ -23,18 +23,29 @@ namespace CommonImageActions.Core
 
         public static byte[] ProcessPdf(byte[] imageData, ImageActions actions)
         {
-            return ProcessHelper(imageData, actions, true);
+            return ProcessHelper(imageData, actions, isPdf:true);
         }
 
         public static byte[] ProcessImage(byte[] imageData, ImageActions actions)
         {
-            return ProcessHelper(imageData, actions, false);
+            return ProcessHelper(imageData, actions);
         }
 
-        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isPdf = false)
+        public static byte[] ProcessVirtualImage(ImageActions actions)
+        {
+            return ProcessHelper(null, actions, isVirtual:true);
+        }
+
+        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isPdf = false, bool isVirtual = false)
         {
             //placeholder for final image
             SKData encodedImage = null;
+
+            //if virtual image color is set then treat whole process as virtual
+            if (string.IsNullOrEmpty(actions.VirtualImageColor) == false)
+            {
+                isVirtual = true;
+            }
 
             if (isPdf)
             {
@@ -131,6 +142,40 @@ namespace CommonImageActions.Core
                 }
 
             }
+            else if (isVirtual)
+            {
+                Color virtualImageColor = null;
+
+                //set the text color
+                if (!string.IsNullOrEmpty(actions.VirtualImageColor))
+                {
+                    //try regular
+                    if (Color.TryParse(actions.VirtualImageColor, out var newColor))
+                    {
+                        virtualImageColor = newColor;
+                    }
+                    //try hex
+                    else if (Color.TryParse($"#{actions.VirtualImageColor}", out var newColorFromHex))
+                    {
+                        virtualImageColor = newColorFromHex;
+                    }
+                    //fall back to white if they both fail
+                    else
+                    {
+                        virtualImageColor = Colors.Black;
+                    }
+                }
+                else
+                {
+                    virtualImageColor = Colors.Black;
+                }
+
+                var newBitmap = new SKBitmap(100, 100);
+                using var canvas = new SKCanvas(newBitmap);
+                canvas.Clear(virtualImageColor.AsSKColor());
+                using var newImage = new SkiaImage(newBitmap);
+                encodedImage = EncodeSkiaImage(newImage, actions);
+            }
             else
             {
                 using var stream = new MemoryStream(imageData);
@@ -164,7 +209,7 @@ namespace CommonImageActions.Core
                 imageData = ms.ToArray();
             }
 
-            return ProcessHelper(imageData, actions, false);
+            return ProcessHelper(imageData, actions);
         }
 
         public async static Task<byte[]> ProcessPdfAsync(Stream imageStream, ImageActions actions)
@@ -182,7 +227,19 @@ namespace CommonImageActions.Core
                 imageData = ms.ToArray();
             }
 
-            return ProcessHelper(imageData, actions, true);
+            return ProcessHelper(imageData, actions, isPdf:true);
+        }
+
+        public async static Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
+        {
+            //technically async is not needed here, but the plan is to convert image processing to another thread so adding
+            //this function for future compatability
+            if (actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions));
+            }
+
+            return ProcessHelper(null, actions, isVirtual: true);
         }
 
         private static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
@@ -412,7 +469,7 @@ namespace CommonImageActions.Core
                 //calculate the text size again with the new font size
                 var point = new Point(
                     x: (skBmp.Width - textSize.Width) / 2,
-                    y: (skBmp.Height - textSize.Height) / 2);
+                    y: (skBmp.Height - textSize.Height) / 2.5);
                 var myTextRectangle = new Rect(point, textSize);
                 canvas.FontSize = myFontSize;
 

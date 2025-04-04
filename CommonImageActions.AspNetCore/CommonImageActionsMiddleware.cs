@@ -62,6 +62,7 @@ namespace CommonImageActions.AspNetCore
                 var imageFilePath = Path.Combine(webRootPath, imageFileRelativePath);
                 var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
                 var isRemoteServer = !string.IsNullOrEmpty(_options.RemoteFileServerUrl);
+                var isVirtual = _options.IsVirtual;
 
                 //convert query string into image actions
                 var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
@@ -109,10 +110,14 @@ namespace CommonImageActions.AspNetCore
                         imageData = ImageProcessor.ProcessImage(responseData, imageActions);
                     }
                 }
+                else if (isVirtual)
+                {
+                    imageData = await ImageProcessor.ProcessVirtualImageAsync(imageActions);
+                }
                 else
                 {
-                    //check to see if the request has been modified (for example if someone has requested root
-                    if(imageFilePath.StartsWith(webRootPath) == false)
+                    //check to see if the request has been modified (for example if someone has requested root)
+                    if (imageFilePath.StartsWith(webRootPath) == false)
                     {
                         throw new UnauthorizedAccessException();
                     }
@@ -213,6 +218,9 @@ namespace CommonImageActions.AspNetCore
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 
+            var virtualImageColorString = query["virtualColor"] ?? query["vc"];
+            imageActions.VirtualImageColor = virtualImageColorString;
+            
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
             {

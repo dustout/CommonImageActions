@@ -25,6 +25,8 @@ namespace CommonImageActions.AspNetCore
             }
         }
 
+        public bool IsVirtual { get; set; }
+
         public string RemoteFileServerUrl { get; set; }
 
         public ImageActions DefaultImageActions { get; set; }
