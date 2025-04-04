@@ -477,7 +477,7 @@ namespace CommonImageActions.Core
                 //calculate the text size again with the new font size
                 var point = new Point(
                     x: (skBmp.Width - textSize.Width) / 2,
-                    y: (skBmp.Height - textSize.Height) / 2.5);
+                    y: (skBmp.Height - textSize.Height) / 2);
                 var myTextRectangle = new Rect(point, textSize);
                 canvas.FontSize = myFontSize;
 
