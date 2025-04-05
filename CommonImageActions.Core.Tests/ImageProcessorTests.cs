@@ -156,7 +156,8 @@ namespace CommonImageActions.Core.Tests
             // Assert
             Assert.NotEqual(0ul, result);
         }
-        public bool IsImage(byte[] imageData)
+
+        private bool IsImage(byte[] imageData)
         {
             using var stream = new MemoryStream(imageData);
             using var image = SKBitmap.Decode(stream);
