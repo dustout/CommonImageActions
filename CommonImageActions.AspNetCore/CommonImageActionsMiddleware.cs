@@ -85,8 +85,7 @@ namespace CommonImageActions.AspNetCore
                     {
                         if (File.Exists(cachedFilePath))
                         {
-                            //if the file exists then just return it
-                            var cachedFileData = await File.ReadAllBytesAsync(cachedFilePath);
+                            //if the file exists then return it
                             if (imageActions.Format.HasValue)
                             {
                                 context.Response.ContentType = $"image/{imageActions.Format.Value.ToString().ToLower()}";
@@ -95,7 +94,11 @@ namespace CommonImageActions.AspNetCore
                             {
                                 context.Response.ContentType = $"image/{imageExtension.Replace(".", string.Empty)}";
                             }
-                            await context.Response.Body.WriteAsync(cachedFileData, 0, cachedFileData.Length);
+                           
+                            using (var cachedFileStream = File.OpenRead(cachedFilePath))
+                            { 
+                                await cachedFileStream.CopyToAsync(context.Response.Body);
+                            }
                             return;
                         }
                     }
