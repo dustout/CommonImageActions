@@ -1,4 +1,5 @@
 ﻿using CommonImageActions.Core;
+using CommonImageActions.Pdf;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -133,7 +134,7 @@ namespace CommonImageActions.AspNetCore
                     //get the image data and process it
                     if (isPdf)
                     {
-                        imageData = ImageProcessor.ProcessPdf(responseData, imageActions);
+                        imageData = PdfProcessor.ProcessPdf(responseData, imageActions);
                     }
                     else
                     {
@@ -170,7 +171,7 @@ namespace CommonImageActions.AspNetCore
                     using var inputStream = File.OpenRead(imageFilePath);
                     if (isPdf)
                     {
-                        imageData = await ImageProcessor.ProcessPdfAsync(inputStream, imageActions);
+                        imageData = await PdfProcessor.ProcessPdfAsync(inputStream, imageActions);
                     }
                     else
                     {

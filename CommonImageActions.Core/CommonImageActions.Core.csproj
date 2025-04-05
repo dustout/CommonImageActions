@@ -27,7 +27,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Graphics.Skia" Version="8.0.3" />
-    <PackageReference Include="PDFiumCore" Version="134.0.6982" />
   </ItemGroup>
 
 </Project>

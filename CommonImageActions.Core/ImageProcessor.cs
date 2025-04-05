@@ -1,6 +1,5 @@
 ﻿using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Graphics.Skia;
-using PDFiumCore;
 using SkiaSharp;
 using System;
 using System.Collections;
@@ -20,14 +19,7 @@ namespace CommonImageActions.Core
         public static int GifQuality = 90;
         public static int CornerRadius = 10;
 
-        private static bool isPdfiumInitalized = false;
-
         public static List<string> BackgroundColours = new List<string>{ "495057", "f03e3e", "d6336c", "ae3ec9", "7048e8", "4263eb", "1c7ed6", "1098ad", "0ca678", "37b24d", "74b816", "f59f00", "f76707" };
-
-        public static byte[] ProcessPdf(byte[] imageData, ImageActions actions)
-        {
-            return ProcessHelper(imageData, actions, isPdf:true);
-        }
 
         public static byte[] ProcessImage(byte[] imageData, ImageActions actions)
         {
@@ -39,7 +31,7 @@ namespace CommonImageActions.Core
             return ProcessHelper(null, actions, isVirtual:true);
         }
 
-        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isPdf = false, bool isVirtual = false)
+        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isVirtual = false)
         {
             //placeholder for final image
             SKData encodedImage = null;
@@ -54,102 +46,7 @@ namespace CommonImageActions.Core
                 isVirtual = true;
             }
 
-            if (isPdf)
-            {
-                //make sure pdfium is initalized
-                if (isPdfiumInitalized == false)
-                {
-                    fpdfview.FPDF_InitLibrary();
-                    isPdfiumInitalized = true;
-                }
-
-                var handle = GCHandle.Alloc(imageData, GCHandleType.Pinned);
-                try
-                {
-                    var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), imageData.Length, actions.PdfPassword);
-                    if (pdfDocument == null)
-                    {
-                        throw new NotImplementedException("Error loading pdf");
-                    }
-
-                    try
-                    {
-                        //make sure there is at least one page
-                        var pageCount = fpdfview.FPDF_GetPageCount(pdfDocument);
-                        if (pageCount == 0)
-                        {
-                            throw new NotImplementedException("Error loading pdf");
-                        }
-
-                        //set requested page, if not requested default to first page
-                        //also offset by 1 for usability to match readers
-                        var requestedPage = 0;
-                        if (actions.Page.HasValue && actions.Page <= pageCount && actions.Page > 0)
-                        {
-                            requestedPage = actions.Page.Value - 1;
-                        }
-
-                        //get the first page
-                        var pdfPage = fpdfview.FPDF_LoadPage(pdfDocument, requestedPage);
-                        if (pdfPage == null)
-                        {
-                            throw new NotImplementedException("Error loading pdf");
-                        }
-
-                        try
-                        {
-                            //get dimensions of the page
-                            var pdfWidth = (int)fpdfview.FPDF_GetPageWidth(pdfPage);
-                            var pdfHeight = (int)fpdfview.FPDF_GetPageHeight(pdfPage);
-
-                            //create a bitmap of the page
-                            var pdfBitmap = fpdfview.FPDFBitmapCreate(pdfWidth, pdfHeight, 0);
-                            fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
-                            fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
-
-                            try
-                            {
-                                //get handle to buffer
-                                var buffer = fpdfview.FPDFBitmapGetBuffer(pdfBitmap);
-                                var stride = fpdfview.FPDFBitmapGetStride(pdfBitmap);
-                                var bufferSize = stride * pdfHeight;
-
-                                // Copy data from unmanaged buffer to managed array
-                                byte[] managedArray = new byte[bufferSize];
-                                Marshal.Copy(buffer, managedArray, 0, bufferSize);
-
-                                //convert from BGRA32 format to BMP format
-                                var bmpData = ConvertFromBGRA32ToBmp(managedArray, pdfWidth, pdfHeight);
-
-                                //convert into skia format
-                                using var originalBitmap = SKBitmap.Decode(bmpData);
-                                using var newImage = new SkiaImage(originalBitmap);
-
-                                //process skia image into encoded image
-                                encodedImage = EncodeSkiaImage(newImage, actions);
-                            }
-                            finally
-                            {
-                                fpdfview.FPDFBitmapDestroy(pdfBitmap);
-                            }
-                        }
-                        finally
-                        {
-                            fpdfview.FPDF_ClosePage(pdfPage);
-                        }
-                    }
-                    finally
-                    {
-                        fpdfview.FPDF_CloseDocument(pdfDocument);
-                    }
-                }
-                finally
-                {
-                    handle.Free();
-                }
-
-            }
-            else if (isVirtual)
+            if (isVirtual)
             {
                 Color virtualImageColor = null;
 
@@ -239,24 +136,6 @@ namespace CommonImageActions.Core
             return ProcessHelper(imageData, actions);
         }
 
-        public async static Task<byte[]> ProcessPdfAsync(Stream imageStream, ImageActions actions)
-        {
-            if (actions == null)
-            {
-                throw new ArgumentNullException(nameof(actions));
-            }
-
-            //copy stream into memory asyncronously
-            byte[] imageData = null;
-            using (var ms = new MemoryStream())
-            {
-                await imageStream.CopyToAsync(ms);
-                imageData = ms.ToArray();
-            }
-
-            return ProcessHelper(imageData, actions, isPdf:true);
-        }
-
         public async static Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
         {
             //technically async is not needed here, but the plan is to convert image processing to another thread so adding
@@ -269,7 +148,7 @@ namespace CommonImageActions.Core
             return ProcessHelper(null, actions, isVirtual: true);
         }
 
-        private static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
+        public static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
         {
             //make sure image was loaded successfully
             if (newImage == null)
@@ -600,51 +479,6 @@ namespace CommonImageActions.Core
             }
 
             return initials.ToUpper();
-        }
-        private static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
-        {
-            int bytesPerPixel = 4; // BGRA32
-
-            // Calculate the size of the image data
-            int imageSize = width * height * bytesPerPixel;
-
-            // Create BMP file header (14 bytes)
-            byte[] bmpFileHeader = new byte[14];
-            bmpFileHeader[0] = (byte)'B';
-            bmpFileHeader[1] = (byte)'M';
-            int fileSize = 54 + imageSize; // 54 bytes for headers + image data
-            BitConverter.GetBytes(fileSize).CopyTo(bmpFileHeader, 2);
-            bmpFileHeader[10] = 54; // Pixel data offset
-
-            // Create DIB header (40 bytes)
-            byte[] dibHeader = new byte[40];
-            BitConverter.GetBytes(40).CopyTo(dibHeader, 0); // DIB header size
-            BitConverter.GetBytes(width).CopyTo(dibHeader, 4);
-            BitConverter.GetBytes(height).CopyTo(dibHeader, 8);
-            dibHeader[12] = 1; // Number of color planes
-            dibHeader[14] = 32; // Bits per pixel
-                                // Compression (0 = BI_RGB, no compression)
-                                // Image size (can be 0 for BI_RGB)
-            BitConverter.GetBytes(imageSize).CopyTo(dibHeader, 20);
-
-            // Reverse the rows in the pixel data
-            byte[] reversedData = new byte[imageSize];
-            int rowSize = width * bytesPerPixel;
-            for (int i = 0; i < height; i++)
-            {
-                Array.Copy(managedArray, i * rowSize, reversedData, (height - 1 - i) * rowSize, rowSize);
-            }
-
-            byte[] bmpData = null;
-            using (var fs = new MemoryStream())
-            {
-                fs.Write(bmpFileHeader, 0, bmpFileHeader.Length);
-                fs.Write(dibHeader, 0, dibHeader.Length);
-                fs.Write(reversedData, 0, managedArray.Length);
-                bmpData = fs.ToArray();
-            }
-
-            return bmpData;
         }
     }
 }

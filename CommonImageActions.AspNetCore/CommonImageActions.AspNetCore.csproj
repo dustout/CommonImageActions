@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CommonImageActions.Core\CommonImageActions.Core.csproj" />
+    <ProjectReference Include="..\CommonImageActions.Pdf\CommonImageActions.Pdf.csproj" />
   </ItemGroup>
 
 </Project>
