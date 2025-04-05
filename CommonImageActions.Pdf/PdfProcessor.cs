@@ -64,15 +64,15 @@ namespace CommonImageActions.Pdf
         {
             byte[] returnValue = null;
 
+            //make sure pdfium is initalized
+            if (isPdfiumInitalized == false)
+            {
+                fpdfview.FPDF_InitLibrary();
+                isPdfiumInitalized = true;
+            }
+
             await Task.Run(() =>
             {
-                //make sure pdfium is initalized
-                if (isPdfiumInitalized == false)
-                {
-                    fpdfview.FPDF_InitLibrary();
-                    isPdfiumInitalized = true;
-                }
-
                 var handle = GCHandle.Alloc(pdfData, GCHandleType.Pinned);
                 try
                 {
