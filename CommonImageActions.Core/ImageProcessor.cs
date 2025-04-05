@@ -461,7 +461,7 @@ namespace CommonImageActions.Core
             return encodedImage;
         }
 
-        private static UInt64 CalculateHash(string read)
+        public static UInt64 CalculateHash(string read)
         {
             UInt64 hashedValue = 3074457345618258791ul;
             for (int i = 0; i < read.Length; i++)
