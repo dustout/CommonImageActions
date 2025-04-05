@@ -72,6 +72,13 @@ namespace CommonImageActions.AspNetCore
 
                 if (_options.UseDiskCache)
                 {
+                    //make sure default disk cache location is set
+                    if (string.IsNullOrEmpty(CommonImageActionSettings.DefaultDiskCacheLocation))
+                    {
+                        CommonImageActionSettings.DefaultDiskCacheLocation = Path.Combine(webRootPath, "cache");
+                    }
+
+                    //chose the best most specific cache location
                     var diskCacheLocation = _options.DiskCacheLocation;
                     if(string.IsNullOrEmpty(diskCacheLocation))
                     {
