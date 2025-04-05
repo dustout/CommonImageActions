@@ -6,7 +6,8 @@ namespace CommonImageActions.AspNetCore
     public class CommonImageActionSettings
     {
         private string _pathToWatch = "";
-        public string PathToWatch {
+        public string PathToWatch
+        {
             get
             {
                 return this._pathToWatch;
@@ -14,7 +15,7 @@ namespace CommonImageActions.AspNetCore
 
             set
             {
-                if(value == "/" || value == null)
+                if (value == "/" || value == null)
                 {
                     this._pathToWatch = String.Empty;
                 }

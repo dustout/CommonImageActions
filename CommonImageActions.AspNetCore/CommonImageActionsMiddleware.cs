@@ -3,17 +3,12 @@ using CommonImageActions.Pdf;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Microsoft.Maui.Graphics.Skia;
-using PDFiumCore;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -36,7 +31,7 @@ namespace CommonImageActions.AspNetCore
         public async Task InvokeAsync(HttpContext context)
         {
             //if no path then always ignore
-            if(context.Request.Path.HasValue == false)
+            if (context.Request.Path.HasValue == false)
             {
                 await _next(context);
                 return;
@@ -46,7 +41,7 @@ namespace CommonImageActions.AspNetCore
             {
                 //check if request is for a supported image
                 var imageExtension = GetImageExtension(context.Request.Path);
-                if(imageExtension == null)
+                if (imageExtension == null)
                 {
                     await _next(context);
                     return;
@@ -80,7 +75,7 @@ namespace CommonImageActions.AspNetCore
 
                     //chose the best most specific cache location
                     var diskCacheLocation = _options.DiskCacheLocation;
-                    if(string.IsNullOrEmpty(diskCacheLocation))
+                    if (string.IsNullOrEmpty(diskCacheLocation))
                     {
                         diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
                     }
@@ -101,9 +96,9 @@ namespace CommonImageActions.AspNetCore
                             {
                                 context.Response.ContentType = $"image/{imageExtension.Replace(".", string.Empty)}";
                             }
-                           
+
                             using (var cachedFileStream = File.OpenRead(cachedFilePath))
-                            { 
+                            {
                                 await cachedFileStream.CopyToAsync(context.Response.Body);
                             }
                             return;
@@ -239,7 +234,7 @@ namespace CommonImageActions.AspNetCore
                         Console.WriteLine($"Error writing cached file {cachedFilePath}. {ex.ToString()}");
                     }
                 }
-                
+
                 return;
             }
             // Call the next delegate/middleware in the pipeline
@@ -336,7 +331,7 @@ namespace CommonImageActions.AspNetCore
 
             var virtualImageColorString = query["virtualColor"] ?? query["c"];
             imageActions.ImageColor = virtualImageColorString;
-            
+
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
             {

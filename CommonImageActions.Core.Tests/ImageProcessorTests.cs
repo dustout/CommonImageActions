@@ -1,13 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
-using Microsoft.Maui.Graphics;
 using Microsoft.Maui.Graphics.Skia;
 using SkiaSharp;
-using Xunit;
 
 namespace CommonImageActions.Core.Tests
 {
@@ -21,7 +13,7 @@ namespace CommonImageActions.Core.Tests
             var imagesData = new List<byte[]>();
 
             //make 10 copies of the data and process them all
-            for(var i=0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 var newTestJpg = testJpg.ToArray();
                 imagesData.Add(newTestJpg);
