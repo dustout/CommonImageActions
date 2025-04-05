@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.AspNetCo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Pdf", "CommonImageActions.Pdf\CommonImageActions.Pdf.csproj", "{DD5FA8F7-7384-440C-B599-B5BC39CB42F3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Core.Tests", "CommonImageActions.Core.Tests\CommonImageActions.Core.Tests.csproj", "{F58894B0-F981-4DE5-B78F-4A685044502D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{DD5FA8F7-7384-440C-B599-B5BC39CB42F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD5FA8F7-7384-440C-B599-B5BC39CB42F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD5FA8F7-7384-440C-B599-B5BC39CB42F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F58894B0-F981-4DE5-B78F-4A685044502D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F58894B0-F981-4DE5-B78F-4A685044502D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F58894B0-F981-4DE5-B78F-4A685044502D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F58894B0-F981-4DE5-B78F-4A685044502D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
