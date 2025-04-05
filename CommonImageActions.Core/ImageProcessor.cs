@@ -19,103 +19,11 @@ namespace CommonImageActions.Core
         public static int GifQuality = 90;
         public static int CornerRadius = 10;
 
-        public static List<string> BackgroundColours = new List<string>{ "495057", "f03e3e", "d6336c", "ae3ec9", "7048e8", "4263eb", "1c7ed6", "1098ad", "0ca678", "37b24d", "74b816", "f59f00", "f76707" };
+        public static List<string> BackgroundColours = new List<string> { "495057", "f03e3e", "d6336c", "ae3ec9", "7048e8", "4263eb", "1c7ed6", "1098ad", "0ca678", "37b24d", "74b816", "f59f00", "f76707" };
 
-        public static byte[] ProcessImage(byte[] imageData, ImageActions actions)
+        public static async Task<byte[]> ProcessImageAsync(byte[] imageData, ImageActions actions)
         {
-            return ProcessHelper(imageData, actions);
-        }
-
-        public static byte[] ProcessVirtualImage(ImageActions actions)
-        {
-            return ProcessHelper(null, actions, isVirtual:true);
-        }
-
-        private static byte[] ProcessHelper(byte[] imageData, ImageActions actions, bool isVirtual = false)
-        {
-            //placeholder for final image
-            SKData encodedImage = null;
-
-            //if virtual image color is set then treat whole process as virtual
-            if (string.IsNullOrEmpty(actions.ImageColor) == false)
-            {
-                isVirtual = true;
-            }
-            else if(actions.ChooseImageColorFromTextValue.HasValue && actions.ChooseImageColorFromTextValue.Value == true)
-            {
-                isVirtual = true;
-            }
-
-            if (isVirtual)
-            {
-                Color virtualImageColor = null;
-
-                //set the text color
-                if (!string.IsNullOrEmpty(actions.ImageColor))
-                {
-                    //try regular
-                    if (Color.TryParse(actions.ImageColor, out var newColor))
-                    {
-                        virtualImageColor = newColor;
-                    }
-                    //try hex
-                    else if (Color.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
-                    {
-                        virtualImageColor = newColorFromHex;
-                    }
-                    //fall back to white if they both fail
-                    else
-                    {
-                        virtualImageColor = Colors.Black;
-                    }
-                }
-                else if (actions.ChooseImageColorFromTextValue.HasValue
-                    && actions.ChooseImageColorFromTextValue.Value == true
-                    && string.IsNullOrEmpty(actions.Text) == false)
-                {
-                    var hashValue = CalculateHash(actions.Text);
-                    var backgroundIndex = (int)(hashValue % (UInt64)BackgroundColours.Count);
-                    var backgroundColor = BackgroundColours[backgroundIndex];
-                    if(backgroundColor != null)
-                    {
-                        backgroundColor = $"#{backgroundColor}";
-                    }
-                    if (Color.TryParse(backgroundColor, out var newColor))
-                    {
-                        virtualImageColor = newColor;
-                    }
-                    else
-                    {
-                        virtualImageColor = Colors.Black;
-                    }
-                }
-                else
-                {
-                    virtualImageColor = Colors.Black;
-                }
-
-                var newBitmap = new SKBitmap(100, 100);
-                using var canvas = new SKCanvas(newBitmap);
-                canvas.Clear(virtualImageColor.AsSKColor());
-                using var newImage = new SkiaImage(newBitmap);
-                encodedImage = EncodeSkiaImage(newImage, actions);
-            }
-            else
-            {
-                using var stream = new MemoryStream(imageData);
-                using var codec = SKCodec.Create(stream);
-                using var originalBitmap = SKBitmap.Decode(codec);
-                using var newImage = new SkiaImage(originalBitmap);
-
-                encodedImage = EncodeSkiaImage(newImage, actions, codec);
-            }
-
-            if (encodedImage == null)
-            {
-                throw new Exception("Error processing image");
-            }
-
-            return encodedImage.ToArray();
+            return await ProcessHelperAsync(imageData, actions);
         }
 
         public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions)
@@ -133,19 +41,102 @@ namespace CommonImageActions.Core
                 imageData = ms.ToArray();
             }
 
-            return ProcessHelper(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions);
         }
 
-        public async static Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
+        public static async Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
         {
-            //technically async is not needed here, but the plan is to convert image processing to another thread so adding
-            //this function for future compatability
-            if (actions == null)
-            {
-                throw new ArgumentNullException(nameof(actions));
-            }
+            return await ProcessHelperAsync(null, actions, isVirtual: true);
+        }
 
-            return ProcessHelper(null, actions, isVirtual: true);
+        private static async Task<byte[]> ProcessHelperAsync(byte[] imageData, ImageActions actions, bool isVirtual = false)
+        {
+            //placeholder for final image
+            SKData encodedImage = null;
+
+            await Task.Run(() =>
+            {
+                //if virtual image color is set then treat whole process as virtual
+                if (string.IsNullOrEmpty(actions.ImageColor) == false)
+                {
+                    isVirtual = true;
+                }
+                else if (actions.ChooseImageColorFromTextValue.HasValue && actions.ChooseImageColorFromTextValue.Value == true)
+                {
+                    isVirtual = true;
+                }
+
+                if (isVirtual)
+                {
+                    Color virtualImageColor = null;
+
+                    //set the text color
+                    if (!string.IsNullOrEmpty(actions.ImageColor))
+                    {
+                        //try regular
+                        if (Color.TryParse(actions.ImageColor, out var newColor))
+                        {
+                            virtualImageColor = newColor;
+                        }
+                        //try hex
+                        else if (Color.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
+                        {
+                            virtualImageColor = newColorFromHex;
+                        }
+                        //fall back to white if they both fail
+                        else
+                        {
+                            virtualImageColor = Colors.Black;
+                        }
+                    }
+                    else if (actions.ChooseImageColorFromTextValue.HasValue
+                        && actions.ChooseImageColorFromTextValue.Value == true
+                        && string.IsNullOrEmpty(actions.Text) == false)
+                    {
+                        var hashValue = CalculateHash(actions.Text);
+                        var backgroundIndex = (int)(hashValue % (UInt64)BackgroundColours.Count);
+                        var backgroundColor = BackgroundColours[backgroundIndex];
+                        if (backgroundColor != null)
+                        {
+                            backgroundColor = $"#{backgroundColor}";
+                        }
+                        if (Color.TryParse(backgroundColor, out var newColor))
+                        {
+                            virtualImageColor = newColor;
+                        }
+                        else
+                        {
+                            virtualImageColor = Colors.Black;
+                        }
+                    }
+                    else
+                    {
+                        virtualImageColor = Colors.Black;
+                    }
+
+                    var newBitmap = new SKBitmap(100, 100);
+                    using var canvas = new SKCanvas(newBitmap);
+                    canvas.Clear(virtualImageColor.AsSKColor());
+                    using var newImage = new SkiaImage(newBitmap);
+                    encodedImage = EncodeSkiaImage(newImage, actions);
+                }
+                else
+                {
+                    using var stream = new MemoryStream(imageData);
+                    using var codec = SKCodec.Create(stream);
+                    using var originalBitmap = SKBitmap.Decode(codec);
+                    using var newImage = new SkiaImage(originalBitmap);
+
+                    encodedImage = EncodeSkiaImage(newImage, actions, codec);
+                }
+
+                if (encodedImage == null)
+                {
+                    throw new Exception("Error processing image");
+                }
+            });
+
+            return encodedImage.ToArray();
         }
 
         public static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
@@ -364,7 +355,7 @@ namespace CommonImageActions.Core
                 }
 
                 var myFont = new Font("Arial", weight: 800);
-                var myFontSize = (int)(imageActions.Height.Value*0.85);
+                var myFontSize = (int)(imageActions.Height.Value * 0.85);
                 canvas.Font = myFont;
 
                 //calculate string size where height is image height to get scale of text

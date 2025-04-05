@@ -15,9 +15,9 @@ namespace CommonImageActions.Pdf
         private static bool isPdfiumInitalized = false;
 
 
-        public static byte[] ProcessPdf(byte[] imageData, ImageActions actions)
+        public async static Task<byte[]> ProcessPdfAsync(byte[] imageData, ImageActions actions)
         {
-            return ProcessHelper(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions);
         }
 
         public async static Task<byte[]> ProcessPdfAsync(Stream imageStream, ImageActions actions)
@@ -35,104 +35,107 @@ namespace CommonImageActions.Pdf
                 imageData = ms.ToArray();
             }
 
-            return ProcessHelper(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions);
         }
 
-        private static byte[] ProcessHelper(byte[] pdfData, ImageActions actions)
+        private static async Task<byte[]> ProcessHelperAsync(byte[] pdfData, ImageActions actions)
         {
             byte[] returnValue = null;
 
-            //make sure pdfium is initalized
-            if (isPdfiumInitalized == false)
+            await Task.Run(() =>
             {
-                fpdfview.FPDF_InitLibrary();
-                isPdfiumInitalized = true;
-            }
-
-            var handle = GCHandle.Alloc(pdfData, GCHandleType.Pinned);
-            try
-            {
-                var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), pdfData.Length, actions.PdfPassword);
-                if (pdfDocument == null)
+                //make sure pdfium is initalized
+                if (isPdfiumInitalized == false)
                 {
-                    throw new NotImplementedException("Error loading pdf");
+                    fpdfview.FPDF_InitLibrary();
+                    isPdfiumInitalized = true;
                 }
 
+                var handle = GCHandle.Alloc(pdfData, GCHandleType.Pinned);
                 try
                 {
-                    //make sure there is at least one page
-                    var pageCount = fpdfview.FPDF_GetPageCount(pdfDocument);
-                    if (pageCount == 0)
-                    {
-                        throw new NotImplementedException("Error loading pdf");
-                    }
-
-                    //set requested page, if not requested default to first page
-                    //also offset by 1 for usability to match readers
-                    var requestedPage = 0;
-                    if (actions.Page.HasValue && actions.Page <= pageCount && actions.Page > 0)
-                    {
-                        requestedPage = actions.Page.Value - 1;
-                    }
-
-                    //get the first page
-                    var pdfPage = fpdfview.FPDF_LoadPage(pdfDocument, requestedPage);
-                    if (pdfPage == null)
+                    var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), pdfData.Length, actions.PdfPassword);
+                    if (pdfDocument == null)
                     {
                         throw new NotImplementedException("Error loading pdf");
                     }
 
                     try
                     {
-                        //get dimensions of the page
-                        var pdfWidth = (int)fpdfview.FPDF_GetPageWidth(pdfPage);
-                        var pdfHeight = (int)fpdfview.FPDF_GetPageHeight(pdfPage);
+                        //make sure there is at least one page
+                        var pageCount = fpdfview.FPDF_GetPageCount(pdfDocument);
+                        if (pageCount == 0)
+                        {
+                            throw new NotImplementedException("Error loading pdf");
+                        }
 
-                        //create a bitmap of the page
-                        var pdfBitmap = fpdfview.FPDFBitmapCreate(pdfWidth, pdfHeight, 0);
-                        fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
-                        fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
+                        //set requested page, if not requested default to first page
+                        //also offset by 1 for usability to match readers
+                        var requestedPage = 0;
+                        if (actions.Page.HasValue && actions.Page <= pageCount && actions.Page > 0)
+                        {
+                            requestedPage = actions.Page.Value - 1;
+                        }
+
+                        //get the first page
+                        var pdfPage = fpdfview.FPDF_LoadPage(pdfDocument, requestedPage);
+                        if (pdfPage == null)
+                        {
+                            throw new NotImplementedException("Error loading pdf");
+                        }
 
                         try
                         {
-                            //get handle to buffer
-                            var buffer = fpdfview.FPDFBitmapGetBuffer(pdfBitmap);
-                            var stride = fpdfview.FPDFBitmapGetStride(pdfBitmap);
-                            var bufferSize = stride * pdfHeight;
+                            //get dimensions of the page
+                            var pdfWidth = (int)fpdfview.FPDF_GetPageWidth(pdfPage);
+                            var pdfHeight = (int)fpdfview.FPDF_GetPageHeight(pdfPage);
 
-                            // Copy data from unmanaged buffer to managed array
-                            byte[] managedArray = new byte[bufferSize];
-                            Marshal.Copy(buffer, managedArray, 0, bufferSize);
+                            //create a bitmap of the page
+                            var pdfBitmap = fpdfview.FPDFBitmapCreate(pdfWidth, pdfHeight, 0);
+                            fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
+                            fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
 
-                            //convert from BGRA32 format to BMP format
-                            var bmpData = ConvertFromBGRA32ToBmp(managedArray, pdfWidth, pdfHeight);
+                            try
+                            {
+                                //get handle to buffer
+                                var buffer = fpdfview.FPDFBitmapGetBuffer(pdfBitmap);
+                                var stride = fpdfview.FPDFBitmapGetStride(pdfBitmap);
+                                var bufferSize = stride * pdfHeight;
 
-                            //convert into skia format
-                            using var originalBitmap = SKBitmap.Decode(bmpData);
-                            using var newImage = new SkiaImage(originalBitmap);
+                                // Copy data from unmanaged buffer to managed array
+                                byte[] managedArray = new byte[bufferSize];
+                                Marshal.Copy(buffer, managedArray, 0, bufferSize);
 
-                            //process skia image into encoded image
-                            returnValue = ImageProcessor.EncodeSkiaImage(newImage,actions).ToArray();
+                                //convert from BGRA32 format to BMP format
+                                var bmpData = ConvertFromBGRA32ToBmp(managedArray, pdfWidth, pdfHeight);
+
+                                //convert into skia format
+                                using var originalBitmap = SKBitmap.Decode(bmpData);
+                                using var newImage = new SkiaImage(originalBitmap);
+
+                                //process skia image into encoded image
+                                returnValue = ImageProcessor.EncodeSkiaImage(newImage, actions).ToArray();
+                            }
+                            finally
+                            {
+                                fpdfview.FPDFBitmapDestroy(pdfBitmap);
+                            }
                         }
                         finally
                         {
-                            fpdfview.FPDFBitmapDestroy(pdfBitmap);
+                            fpdfview.FPDF_ClosePage(pdfPage);
                         }
                     }
                     finally
                     {
-                        fpdfview.FPDF_ClosePage(pdfPage);
+                        fpdfview.FPDF_CloseDocument(pdfDocument);
                     }
                 }
                 finally
                 {
-                    fpdfview.FPDF_CloseDocument(pdfDocument);
+                    handle.Free();
                 }
-            }
-            finally
-            {
-                handle.Free();
-            }
+            });
 
             return returnValue;
         }

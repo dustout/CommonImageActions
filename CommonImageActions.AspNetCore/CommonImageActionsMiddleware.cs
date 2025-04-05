@@ -150,11 +150,11 @@ namespace CommonImageActions.AspNetCore
                     //get the image data and process it
                     if (isPdf)
                     {
-                        imageData = PdfProcessor.ProcessPdf(responseData, imageActions);
+                        imageData = await PdfProcessor.ProcessPdfAsync(responseData, imageActions);
                     }
                     else
                     {
-                        imageData = ImageProcessor.ProcessImage(responseData, imageActions);
+                        imageData = await ImageProcessor.ProcessImageAsync(responseData, imageActions);
                     }
                 }
                 else if (isVirtual)
