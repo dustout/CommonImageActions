@@ -8,9 +8,7 @@
     <RepositoryUrl>https://github.com/dustout/CommonImageActions</RepositoryUrl>
     <PackageProjectUrl>https://github.com/dustout/CommonImageActions</PackageProjectUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-    <FileVersion>1.0.3</FileVersion>
-    <AssemblyVersion>1.0.3</AssemblyVersion>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
 
 
