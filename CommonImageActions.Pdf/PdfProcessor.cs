@@ -7,6 +7,7 @@ using Microsoft.Maui.Graphics.Skia;
 using PDFiumCore;
 using SkiaSharp;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 namespace CommonImageActions.Pdf
 {
@@ -14,6 +15,27 @@ namespace CommonImageActions.Pdf
     {
         private static bool isPdfiumInitalized = false;
 
+        public static async Task<IEnumerable<byte[]>> ProcessPdfsAsync(IEnumerable<byte[]> pdfsData, ImageActions actions)
+        {
+            var returnList = new List<byte[]>();
+
+            var activeJobs = new List<Task<byte[]>>();
+            foreach (var pdfData in pdfsData)
+            {
+                var job = ProcessPdfAsync(pdfData, actions);
+                activeJobs.Add(job);
+            }
+
+            await Task.WhenAll(activeJobs);
+
+            //by going through it this way we keep the order the same as it came in
+            foreach (var completeJob in activeJobs)
+            {
+                returnList.Add(completeJob.Result);
+            }
+
+            return returnList;
+        }
 
         public async static Task<byte[]> ProcessPdfAsync(byte[] imageData, ImageActions actions)
         {

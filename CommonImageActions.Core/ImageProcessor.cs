@@ -21,6 +21,28 @@ namespace CommonImageActions.Core
 
         public static List<string> BackgroundColours = new List<string> { "495057", "f03e3e", "d6336c", "ae3ec9", "7048e8", "4263eb", "1c7ed6", "1098ad", "0ca678", "37b24d", "74b816", "f59f00", "f76707" };
 
+        public static async Task<IEnumerable<byte[]>> ProcessImagesAsync(IEnumerable<byte[]> imagesData, ImageActions actions)
+        {
+            var returnList = new List<byte[]>();
+
+            var activeJobs = new List<Task<byte[]>>();
+            foreach (var imageData in imagesData)
+            {
+                var job = ProcessImageAsync(imageData, actions);
+                activeJobs.Add(job);
+            }
+
+            await Task.WhenAll(activeJobs);
+
+            //by going through it this way we keep the order the same as it came in
+            foreach (var completeJob in activeJobs)
+            {
+                returnList.Add(completeJob.Result);
+            }
+
+            return returnList;
+        }
+
         public static async Task<byte[]> ProcessImageAsync(byte[] imageData, ImageActions actions)
         {
             return await ProcessHelperAsync(imageData, actions);
