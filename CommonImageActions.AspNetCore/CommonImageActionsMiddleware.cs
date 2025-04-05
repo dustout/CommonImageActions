@@ -72,9 +72,15 @@ namespace CommonImageActions.AspNetCore
 
                 if (_options.UseDiskCache)
                 {
+                    var diskCacheLocation = _options.DiskCacheLocation;
+                    if(string.IsNullOrEmpty(diskCacheLocation))
+                    {
+                        diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
+                    }
+
                     //check to see if file is in the cache, if it does then return it
                     var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
-                    var cachedFilePath = Path.Combine(_options.DiskCacheLocation, cachedFileName);
+                    var cachedFilePath = Path.Combine(diskCacheLocation, cachedFileName);
                     try
                     {
                         if (File.Exists(cachedFilePath))
@@ -201,13 +207,19 @@ namespace CommonImageActions.AspNetCore
                 //write to disk cache if enabled
                 if (_options.UseDiskCache)
                 {
+                    var diskCacheLocation = _options.DiskCacheLocation;
+                    if (string.IsNullOrEmpty(diskCacheLocation))
+                    {
+                        diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
+                    }
+
                     var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
-                    var cachedFilePath = Path.Combine(_options.DiskCacheLocation, cachedFileName);
+                    var cachedFilePath = Path.Combine(diskCacheLocation, cachedFileName);
                     try
                     {
-                        if (Directory.Exists(_options.DiskCacheLocation) == false)
+                        if (Directory.Exists(diskCacheLocation) == false)
                         {
-                            Directory.CreateDirectory(_options.DiskCacheLocation);
+                            Directory.CreateDirectory(diskCacheLocation);
                         }
 
                         await File.WriteAllBytesAsync(cachedFilePath, imageData);
