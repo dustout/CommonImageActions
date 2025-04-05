@@ -15,6 +15,7 @@ namespace CommonImageActions.Core.Tests
             //make 10 copies of the data and process them all
             for (var i = 0; i < 10; i++)
             {
+
                 var newTestJpg = testJpg.ToArray();
                 imagesData.Add(newTestJpg);
             }
@@ -46,6 +47,30 @@ namespace CommonImageActions.Core.Tests
             Assert.NotNull(result);
             Assert.NotEmpty(result);
         }
+
+        [Fact]
+        public async Task ProcessImageAsync_ShouldReturnImageForCircleShape()
+        {
+            var testJpg = Properties.Resources.testJpg;
+            var actions = new ImageActions()
+            {
+                Width = 100,
+                Height = 100,
+                Mode = ImageMode.Fit,
+                Shape = ImageShape.Circle
+            };
+
+            // Act
+            var result = await ImageProcessor.ProcessImageAsync(testJpg, actions);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.NotEmpty(result);
+
+            var isImage = IsImage(result);
+            Assert.True(isImage, "The result is not a valid image.");
+        }
+      
 
         [Fact]
         public async Task ProcessImageAsync_Stream_ShouldReturnProcessedImage()
@@ -130,6 +155,13 @@ namespace CommonImageActions.Core.Tests
 
             // Assert
             Assert.NotEqual(0ul, result);
+        }
+
+        private bool IsImage(byte[] imageData)
+        {
+            using var stream = new MemoryStream(imageData);
+            using var image = SKBitmap.Decode(stream);
+            return image != null;
         }
     }
 }
