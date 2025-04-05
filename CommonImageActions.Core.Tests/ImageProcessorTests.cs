@@ -66,7 +66,11 @@ namespace CommonImageActions.Core.Tests
             // Assert
             Assert.NotNull(result);
             Assert.NotEmpty(result);
+
+            var isImage = IsImage(result);
+            Assert.True(isImage, "The result is not a valid image.");
         }
+      
 
         [Fact]
         public async Task ProcessImageAsync_Stream_ShouldReturnProcessedImage()
@@ -151,6 +155,12 @@ namespace CommonImageActions.Core.Tests
 
             // Assert
             Assert.NotEqual(0ul, result);
+        }
+        public bool IsImage(byte[] imageData)
+        {
+            using var stream = new MemoryStream(imageData);
+            using var image = SKBitmap.Decode(stream);
+            return image != null;
         }
     }
 }
