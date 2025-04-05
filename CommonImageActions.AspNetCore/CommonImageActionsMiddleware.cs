@@ -329,7 +329,7 @@ namespace CommonImageActions.AspNetCore
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 
-            var virtualImageColorString = query["virtualColor"] ?? query["c"];
+            var virtualImageColorString = query["color"] ?? query["c"];
             imageActions.ImageColor = virtualImageColorString;
 
             var formatString = query["format"] ?? query["f"];
