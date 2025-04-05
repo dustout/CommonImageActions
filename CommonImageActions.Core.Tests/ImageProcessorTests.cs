@@ -49,7 +49,7 @@ namespace CommonImageActions.Core.Tests
         }
 
         [Fact]
-        public async Task ProcessImageAsync_ManyImageActions()
+        public async Task ProcessImageAsync_ShouldReturnImageForCircleShape()
         {
             var testJpg = Properties.Resources.testJpg;
             var actions = new ImageActions()
