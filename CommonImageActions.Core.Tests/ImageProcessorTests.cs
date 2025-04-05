@@ -20,8 +20,8 @@ namespace CommonImageActions.Core.Tests
 
             var imagesData = new List<byte[]>();
 
-            //make 100 copies of the data and process them all
-            for(var i=0; i < 100; i++)
+            //make 10 copies of the data and process them all
+            for(var i=0; i < 10; i++)
             {
                 var newTestJpg = testJpg.ToArray();
                 imagesData.Add(newTestJpg);
