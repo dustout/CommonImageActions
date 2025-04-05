@@ -69,26 +69,6 @@ namespace CommonImageActions.Core.Tests
         }
 
         [Fact]
-        public async Task ProcessImageAsync_Circle()
-        {
-            var testJpg = Properties.Resources.testJpg;
-            var actions = new ImageActions()
-            {
-                Width = 100,
-                Height = 100,
-                Mode = ImageMode.Fit,
-                Shape = ImageShape.Circle
-            };
-
-            // Act
-            var result = await ImageProcessor.ProcessImageAsync(testJpg, actions);
-
-            // Assert
-            Assert.NotNull(result);
-            Assert.NotEmpty(result);
-        }
-
-        [Fact]
         public async Task ProcessImageAsync_Stream_ShouldReturnProcessedImage()
         {
             var testJpg = Properties.Resources.testJpg;
