@@ -12,6 +12,7 @@ and Asp.net core projects. This library is highly performant both in execution t
 extends Microsoft libraries. This library should continue to increase in performance as Microsoft further
 improves their libraries.
 
+![Animated gif that shows the functionality of common image actions](/CommonImageActions/wwwroot/test/ExplainerImage.gif)
 
 
  ## Code Samples
