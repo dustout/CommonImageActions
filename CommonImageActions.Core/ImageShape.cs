@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace CommonImageActions.Core
+﻿namespace CommonImageActions.Core
 {
     public enum ImageShape
     {

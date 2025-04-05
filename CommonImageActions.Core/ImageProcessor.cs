@@ -2,12 +2,8 @@
 using Microsoft.Maui.Graphics.Skia;
 using SkiaSharp;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 

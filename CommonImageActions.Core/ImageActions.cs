@@ -1,5 +1,4 @@
 ﻿using SkiaSharp;
-using System;
 
 namespace CommonImageActions.Core
 {
@@ -12,7 +11,7 @@ namespace CommonImageActions.Core
 
         public ImageActions(ImageActions defaults)
         {
-            if(defaults != null)
+            if (defaults != null)
             {
                 Width = defaults.Width;
                 Height = defaults.Height;
@@ -50,7 +49,7 @@ namespace CommonImageActions.Core
 
         public string ImageColor { get; set; }
 
-        public bool? ChooseImageColorFromTextValue { get; set;}
+        public bool? ChooseImageColorFromTextValue { get; set; }
 
         public SKEncodedImageFormat? Format { get; set; }
 
