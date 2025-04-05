@@ -7,11 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="wwwroot\cache\**" />
+    <Content Remove="wwwroot\cache\**" />
+    <EmbeddedResource Remove="wwwroot\cache\**" />
+    <None Remove="wwwroot\cache\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommonImageActions.AspNetCore\CommonImageActions.AspNetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="UnreachableFolder\" />
+    <Folder Include="wwwroot\cached\" />
     <Folder Include="wwwroot\test\" />
   </ItemGroup>
 

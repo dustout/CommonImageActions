@@ -52,7 +52,8 @@ namespace CommonImageActions.AspNetCore
                 }
 
                 //conver url into a Uri
-                var url = $"{context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
+                var requestAndQuery = $"{context.Request.Path}{context.Request.QueryString}";
+                var url = $"{context.Request.Scheme}://{context.Request.Host}{requestAndQuery}";
                 var uri = new Uri(url);
 
                 //get file information
@@ -67,6 +68,35 @@ namespace CommonImageActions.AspNetCore
                 //convert query string into image actions
                 var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
                 byte[] imageData = null;
+
+                if (_options.UseDiskCache)
+                {
+                    //check to see if file is in the cache, if it does then return it
+                    var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
+                    var cachedFilePath = Path.Combine(_options.DiskCacheLocation, cachedFileName);
+                    try
+                    {
+                        if (File.Exists(cachedFilePath))
+                        {
+                            //if the file exists then just return it
+                            var cachedFileData = await File.ReadAllBytesAsync(cachedFilePath);
+                            if (imageActions.Format.HasValue)
+                            {
+                                context.Response.ContentType = $"image/{imageActions.Format.Value.ToString().ToLower()}";
+                            }
+                            else
+                            {
+                                context.Response.ContentType = $"image/{imageExtension.Replace(".", string.Empty)}";
+                            }
+                            await context.Response.Body.WriteAsync(cachedFileData, 0, cachedFileData.Length);
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error getting cached file {cachedFilePath}. {ex.ToString()}");
+                    }
+                }
 
                 if (isRemoteServer)
                 {
@@ -166,10 +196,61 @@ namespace CommonImageActions.AspNetCore
 
                 //send the resulting data
                 await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
+
+                //write to disk cache if enabled
+                if (_options.UseDiskCache)
+                {
+                    var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
+                    var cachedFilePath = Path.Combine(_options.DiskCacheLocation, cachedFileName);
+                    try
+                    {
+                        if (Directory.Exists(_options.DiskCacheLocation) == false)
+                        {
+                            Directory.CreateDirectory(_options.DiskCacheLocation);
+                        }
+
+                        await File.WriteAllBytesAsync(cachedFilePath, imageData);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error writing cached file {cachedFilePath}. {ex.ToString()}");
+                    }
+                }
+                
                 return;
             }
             // Call the next delegate/middleware in the pipeline
             await _next(context);
+        }
+
+        private static string ByteArrayToHexString(byte[] Bytes)
+        {
+            StringBuilder Result = new StringBuilder(Bytes.Length * 2);
+            string HexAlphabet = "0123456789ABCDEF";
+
+            foreach (byte B in Bytes)
+            {
+                Result.Append(HexAlphabet[(int)(B >> 4)]);
+                Result.Append(HexAlphabet[(int)(B & 0xF)]);
+            }
+
+            return Result.ToString();
+        }
+
+        private static byte[] HexStringToByteArray(string Hex)
+        {
+            byte[] Bytes = new byte[Hex.Length / 2];
+            int[] HexValue = new int[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+       0x06, 0x07, 0x08, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+       0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
+
+            for (int x = 0, i = 0; i < Hex.Length; i += 2, x += 1)
+            {
+                Bytes[x] = (byte)(HexValue[Char.ToUpper(Hex[i + 0]) - '0'] << 4 |
+                                  HexValue[Char.ToUpper(Hex[i + 1]) - '0']);
+            }
+
+            return Bytes;
         }
 
         public static ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)

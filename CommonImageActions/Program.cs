@@ -2,11 +2,21 @@ using CommonImageActions.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
+var _env = app.Environment;
 
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/test"
+        PathToWatch = "/test",
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
+        PathToWatch = "/cached",
+        UseDiskCache = true,
+        DiskCacheLocation = Path.Join(_env.WebRootPath, "cache")
     }
 );
 

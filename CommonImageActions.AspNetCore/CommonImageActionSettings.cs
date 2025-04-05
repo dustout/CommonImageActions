@@ -29,6 +29,10 @@ namespace CommonImageActions.AspNetCore
 
         public string RemoteFileServerUrl { get; set; }
 
+        public bool UseDiskCache { get; set; }
+
+        public string DiskCacheLocation { get; set; }
+
         public ImageActions DefaultImageActions { get; set; }
 
         public static string[] ValidImageExtensions = {
