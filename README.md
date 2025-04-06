@@ -1,10 +1,19 @@
 # Common Image Actions
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/dotnet.yml)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/codeql.yml?label=Security%20Scan)
+![NuGet Version](https://img.shields.io/nuget/v/CommonImageActions.Core)
+![NuGet Downloads](https://img.shields.io/nuget/dt/CommonImageActions.Core)
+![GitHub License](https://img.shields.io/github/license/dustout/CommonImageActions)
+![GitHub Repo stars](https://img.shields.io/github/stars/dustout/CommonImageActions)
 
-## About the Project
-A c# library that helps with common image actions such as 
- - Resizing
- - Converting image to pdf
- - Resizing an image from a url
+## Summary
+A tuned image conversion library to add common image actions like resize and mask to your .Net 
+and Asp.net core projects. This library is highly performant both in execution time and in memory use since it
+extends Microsoft libraries. This library should continue to increase in performance as Microsoft further
+improves their libraries.
+
+![Animated gif that shows the functionality of common image actions](/CommonImageActions/wwwroot/test/ExplainerImage.gif)
+
 
  ## Code Samples
 

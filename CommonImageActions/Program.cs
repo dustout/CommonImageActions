@@ -43,6 +43,9 @@ app.UseCommonImageActions(
     }
 );
 
+
+app.UseStaticFiles();
+
 app.MapGet("/", () => "Hello World!");
 
 app.Run();

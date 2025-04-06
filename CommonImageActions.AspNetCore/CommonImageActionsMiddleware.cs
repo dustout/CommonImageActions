@@ -314,7 +314,7 @@ namespace CommonImageActions.AspNetCore
             var textString = query["text"] ?? query["t"];
             imageActions.Text = textString;
 
-            var asInitialsString = query["asInitials"] ?? query["in"];
+            var asInitialsString = query["initials"] ?? query["in"];
             if (Boolean.TryParse(asInitialsString, out var asInitials))
             {
                 imageActions.AsInitials = asInitials;
@@ -329,7 +329,7 @@ namespace CommonImageActions.AspNetCore
             var textColorString = query["textColor"] ?? query["tc"];
             imageActions.TextColor = textColorString;
 
-            var virtualImageColorString = query["virtualColor"] ?? query["c"];
+            var virtualImageColorString = query["color"] ?? query["c"];
             imageActions.ImageColor = virtualImageColorString;
 
             var formatString = query["format"] ?? query["f"];
