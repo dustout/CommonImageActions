@@ -62,12 +62,17 @@ namespace CommonImageActions.Core
             return await ProcessHelperAsync(imageData, actions);
         }
 
+        public static ImageActionQueryBuilder Process(byte[] imageData)
+        {
+            return new ImageActionQueryBuilder(imageData);
+        }
+
         public static async Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
         {
             return await ProcessHelperAsync(null, actions, isVirtual: true);
         }
 
-        private static async Task<byte[]> ProcessHelperAsync(byte[] imageData, ImageActions actions, bool isVirtual = false)
+        internal static async Task<byte[]> ProcessHelperAsync(byte[] imageData, ImageActions actions, bool isVirtual = false)
         {
             //placeholder for final image
             SKData encodedImage = null;
