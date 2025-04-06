@@ -119,3 +119,34 @@ app.UseCommonImageActions(
     }
 );
 ```
+
+## URL Parameters (Asp.net Core)
+| Parameter | Possible Values | Description |
+|  ------------- | ------------- | ------------- |
+| width, w  | Integer | Set the width of the image |
+| height, h | Integer | Set the height of the image |
+| mode, m | Max, Fit, Zoom, Stretch | **Max**: If both width and height are present then the image will be resized to the max of whatever paramter, and the width will scale accordingly. <br> **Fit**: When both width and height are present fit the image into the container without adjusting the ratio.  <br> **Zoom**: When both width and height are present zoom the image in to fill the space. <br> **Stretch** (default): When both width and height are present stretch the image to fit the container. |
+| shape, s | Circle, Ellipse, RoundedRectangle  | Mask out the image to be of a certain shape. |
+| corner, c | Integer | The corner radius when shape is RoundedRectangle. Default is 10. |
+| text, t | String | The text to display on the image |
+| initials, in | Boolean | When true will only display initials of text. For example DustinG is displayed as DG. |
+| color, c | String (ffccff or blue) | Set a color for the image |
+| textColor, tc | String (ffccff or blue) | Set the color of the text |
+| colorFromText, ft | Boolean | When true a color will be generated based on a hash of the text. The list of colors can be updated in `ImageProcessor.BackgroundColours`. |
+| format, f | Bmp, Gif, Ico, Jpeg, Png, Wbmp, Webp, Pkm, Ktx, Astc, Dng, Heif, Avif | What format to export the resulting image as. Default is png.  |
+| password, pw | String | (pdf only) password to open pdf |
+| page, p  | Integer | (pdf only) what page to render. First page is 1.|
+
+#### Modes Visualized
+
+
+## CommonImageActionSettings
+| Setting | Description |
+|  ------------- | ------------- | ------------- |
+| PathToWatch  | What path to watch. For example `/test` will watch for images in the test directory |
+| IsVirtual  | Avoid looking up the image and construct the image virtually (useful for profile pictures) |
+| RemoteFileServerUrl  | The url of the remote resource to pull images from. Often a blob storage like Amazon S3 or Azure Blob |
+| UseDiskCache | When true the system will save and return cached images. This can dramatically improve performance. |
+| DiskCacheLocation | Where to store and retrieve the DiskCache images from. This directory needs to be writable. If it is not the system will print errors to the console, but will still continue to run. |
+| DefaultImageActions | Set a default image action to be used on all requests against a particular path. Useful when you want all images in a directory to be a specific dimension. |
+
