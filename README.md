@@ -1,4 +1,4 @@
-# Common Image Actions
+﻿# Common Image Actions
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/dotnet.yml)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/codeql.yml?label=Security%20Scan)
@@ -14,6 +14,15 @@ extends Microsoft libraries. This library should continue to increase in perform
 improves their libraries.
 
 ![Animated gif that shows the functionality of common image actions](/CommonImageActions/wwwroot/test/ExplainerImage.gif)
+
+## Features
+✅ Resize images<br>
+✅ Convert images to be circle or rounded rectangle<br>
+✅ PDF support<br>
+✅ Fast and memory efficient<br>
+✅ Create user profile placeholders ![Example of user profile placeholders](/CommonImageActions/wwwroot/test/ProfilePictureStrip.png) <br>
+✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) <br>
+✅ Works with any project that supports .net standard
 
 
 ## Getting Started (Asp.Net Core)
@@ -84,7 +93,7 @@ app.UseCommonImageActions(
 );
 ```
 
-#### Cache generate profile pictures and cache the response to the disk
+#### Generate user placeholders and cache the response to the disk
 ```csharp
 //the ChooseImageColorFromTextValue ensures that the following will have a different background color
 //https://localhost:44302/profilepicture/profile.png?t=DustinGa
