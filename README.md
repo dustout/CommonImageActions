@@ -59,18 +59,17 @@ app.UseCommonImageActions(
     Install-Package CommonImageActions.Core
 ```
 
-#### Pass image bytes to the ImageProcessor.ProcessImageAsync 
+#### Pass image bytes to the ImageProcessor.Process
 Get the image `bytes[]` and pass those bytes along with imageActions to the `ImageProcessor.ProcessImageAsync` function
 ```csharp
-var imageData = File.ReadAllBytes("test.png"); //read in your image data
-var actions = new CommonImageActions.Core.ImageActions();
-actions.Height = 50;
-actions.Width = 50;
-actions.Format = SkiaSharp.SKEncodedImageFormat.Png;
-var pngImageData = await CommonImageActions.Core.ImageProcessor.ProcessImageAsync(imageData,actions);
+byte[] testJpg = File.ReadAllBytes("test.jpg");
+var result = await ImageProcessor.Process(testJpg)
+               .Width(100)
+               .Height(100)
+               .Mode(ImageMode.Fit)
+               .Shape(ImageShape.Circle)
+               .ToImageAsync();
 ```
-
-
 
 
  ## Code Examples (Asp.net core)
