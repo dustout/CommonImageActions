@@ -176,6 +176,6 @@ ImageFlow <br>
 
 #### Multiple Images
 When converting multiple images we can see where CommonImageActions really shines. What takes 547ms in CommonImageActions
-takes 4,370ms in ImageSharp and 11,600ms in ImageFlow. We can also see that the allocated memory 
+takes 4,400ms in ImageSharp and 11,430ms in ImageFlow. We can also see that the allocated memory 
 is significantly less than ImageSharp.
 ![Benchmarking results of CommonImageActions against multiple images](/Benchmark/MultipleImageResults.png)
