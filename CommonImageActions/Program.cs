@@ -1,4 +1,5 @@
 using CommonImageActions.AspNetCore;
+using CommonImageActions.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -7,7 +8,39 @@ var _env = app.Environment;
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/test",
+        PathToWatch = "/test"
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
+        PathToWatch = "/logos",
+        DefaultImageActions = new ImageActions()
+        {
+            Height = 50,
+            Width = 50,
+            Format = SkiaSharp.SKEncodedImageFormat.Png
+        }
+    }
+);
+
+//example: https://localhost:44302/profilepicture/profile.png?t=DustinGa
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
+        PathToWatch = "/profilepicture",
+        IsVirtual = true,
+        UseDiskCache = true,
+        DefaultImageActions = new ImageActions()
+        {
+            Height = 50,
+            Width = 50,
+            Format = SkiaSharp.SKEncodedImageFormat.Png,
+            Shape = ImageShape.Circle,
+            AsInitials = true,
+            ChooseImageColorFromTextValue = true
+        }
     }
 );
 
