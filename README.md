@@ -146,7 +146,7 @@ app.UseCommonImageActions(
 |  ------------- | ------------- | ------------- |
 | PathToWatch  | What path to watch. For example `/test` will watch for images in the test directory |
 | IsVirtual  | Avoid looking up the image and construct the image virtually (useful for profile pictures) |
-| RemoteFileServerUrl  | The url of the remote resource to pull images from. Often a blob storage like Amazon S3 or Azure Blob |
+| RemoteFileServerUrl  | The URL of the remote resource to pull images from. Often a blob storage like Amazon S3 or Azure Blob |
 | UseDiskCache | When true the system will save and return cached images. This can dramatically improve performance. |
 | DiskCacheLocation | Where to store and retrieve the DiskCache images from. This directory needs to be writable. If it is not the system will print errors to the console, but will still continue to run. |
 | DefaultImageActions | Set a default image action to be used on all requests against a particular path. Useful when you want all images in a directory to be a specific dimension. |
