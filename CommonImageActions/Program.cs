@@ -1,4 +1,5 @@
 using CommonImageActions.AspNetCore;
+using CommonImageActions.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -8,6 +9,20 @@ app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/test",
+
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
+        PathToWatch = "/logos",
+        DefaultImageActions = new ImageActions()
+        {
+            Height = 50,
+            Width = 50,
+            Format = SkiaSharp.SKEncodedImageFormat.Png
+        }
     }
 );
 
