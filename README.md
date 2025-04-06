@@ -20,7 +20,7 @@ improves their libraries.
 ✅ Convert images to be circle or rounded rectangle<br>
 ✅ PDF support<br>
 ✅ Fast and memory efficient<br>
-✅ Create user profile placeholders 
+✅ Create user profile placeholders where background auto changes based on name
 <img src="/CommonImageActions/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
 <br>
 ✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) <br>
