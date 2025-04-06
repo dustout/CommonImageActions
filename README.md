@@ -2,7 +2,7 @@
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/dotnet.yml)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/codeql.yml?label=Security%20Scan)
-[![NuGet Version](https://img.shields.io/nuget/v/CommonImageActions.Core)](https://www.nuget.org/packages/CommonImageActions.Core)
+[![NuGet Version](https://img.shields.io/nuget/v/CommonImageActions.AspNetCore)](https://www.nuget.org/packages/CommonImageActions.AspNetCore)
 ![NuGet Downloads](https://img.shields.io/nuget/dt/CommonImageActions.Core)
 ![GitHub License](https://img.shields.io/github/license/dustout/CommonImageActions)
 ![GitHub Repo stars](https://img.shields.io/github/stars/dustout/CommonImageActions)
