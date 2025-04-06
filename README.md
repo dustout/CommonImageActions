@@ -154,7 +154,7 @@ app.UseCommonImageActions(
 
 ## CommonImageActionSettings
 | Setting | Description |
-|  ------------- | ------------- | ------------- |
+|  ------------- | ------------- |
 | PathToWatch  | What path to watch. For example `/test` will watch for images in the test directory |
 | IsVirtual  | Avoid looking up the image and construct the image virtually (useful for profile pictures) |
 | RemoteFileServerUrl  | The URL of the remote resource to pull images from. Often a blob storage like Amazon S3 or Azure Blob |
