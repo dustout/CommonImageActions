@@ -1,4 +1,4 @@
-# Common Image Actions
+﻿# Common Image Actions
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/dotnet.yml)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/dustout/CommonImageActions/codeql.yml?label=Security%20Scan)
@@ -14,6 +14,17 @@ extends Microsoft libraries. This library should continue to increase in perform
 improves their libraries.
 
 ![Animated gif that shows the functionality of common image actions](/CommonImageActions/wwwroot/test/ExplainerImage.gif)
+
+## Features
+✅ Resize images<br>
+✅ Convert images to be circle or rounded rectangle<br>
+✅ PDF support<br>
+✅ Fast and memory efficient<br>
+✅ Create user profile placeholders where background auto changes based on name
+<img src="/CommonImageActions/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
+<br>
+✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) <br>
+✅ Works with any project that supports .net standard
 
 
 ## Getting Started (Asp.Net Core)
@@ -84,7 +95,7 @@ app.UseCommonImageActions(
 );
 ```
 
-#### Cache generate profile pictures and cache the response to the disk
+#### Generate user placeholders and cache the response to the disk
 ```csharp
 //the ChooseImageColorFromTextValue ensures that the following will have a different background color
 //https://localhost:44302/profilepicture/profile.png?t=DustinGa
@@ -151,3 +162,20 @@ app.UseCommonImageActions(
 | DiskCacheLocation | Where to store and retrieve the DiskCache images from. This directory needs to be writable. If it is not the system will print errors to the console, but will still continue to run. |
 | DefaultImageActions | Set a default image action to be used on all requests against a particular path. Useful when you want all images in a directory to be a specific dimension. |
 
+## Benchmarking
+Use [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) to compare the performance between 
+[Common Image Actions](https://github.com/dustout/CommonImageActions), 
+[ImageSharp](https://github.com/SixLabors/ImageSharp), and 
+[ImageFlowDotNet](https://github.com/imazen/imageflow-dotnet).
+The benchmark files can be found in the /Benchmark directory if you wish to run the same test. 
+
+#### Single Image
+When converting a single image we can see the AllocatedBytes is half of ImageSharp, and the performance is faster than
+ImageFlow <br>
+![Benchmarking results of CommonImageActions against a single image](/Benchmark/SingleImageResults.png)
+
+#### Multiple Images
+When converting multiple images we can see where CommonImageActions really shines. What takes 547ms in CommonImageActions
+takes 4,400ms in ImageSharp and 11,430ms in ImageFlow. We can also see that the allocated memory 
+is significantly less than ImageSharp.
+![Benchmarking results of CommonImageActions against multiple images](/Benchmark/MultipleImageResults.png)
