@@ -16,15 +16,15 @@ improves their libraries.
 ![Animated gif that shows the functionality of common image actions](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions/wwwroot/test/ExplainerImage.gif)
 
 ## Features
-✅ Resize images<br>
-✅ Convert images to be circle or rounded rectangle<br>
-✅ PDF support<br>
-✅ Fast and memory efficient<br>
+✅ Resize images\
+✅ Convert images to be circle or rounded rectangle\
+✅ PDF support\
+✅ Fast and memory efficient\
 ✅ Create user profile placeholders where background auto changes based on name
 <img src="https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
-<br>
-✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) <br>
-✅ Works with any project that supports .net standard <br>
+\
+✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) \
+✅ Works with any project that supports .net standard \
 ✅ Fluent interface
 
 
@@ -183,11 +183,11 @@ The benchmark files can be found in the /Benchmark directory if you wish to run 
 
 #### Single Image
 When converting a single image we can see the AllocatedBytes is half of ImageSharp, and the performance is faster than
-ImageFlow <br>
+ImageFlow. \
 ![Benchmarking results of CommonImageActions against a single image](https://raw.githubusercontent.com/dustout/CommonImageActions/master/Benchmark/SingleImageResults.png)
 
 #### Multiple Images
 When converting multiple images we can see where CommonImageActions really shines. What takes 547ms in CommonImageActions
 takes 4,400ms in ImageSharp and 11,430ms in ImageFlow. We can also see that the allocated memory 
-is significantly less than ImageSharp.
+is significantly less than ImageSharp. \
 ![Benchmarking results of CommonImageActions against multiple images](https://raw.githubusercontent.com/dustout/CommonImageActions/master/Benchmark/MultipleImageResults.png)
