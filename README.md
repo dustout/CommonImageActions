@@ -125,7 +125,7 @@ app.UseCommonImageActions(
 |  ------------- | ------------- | ------------- |
 | width, w  | Integer | Set the width of the image |
 | height, h | Integer | Set the height of the image |
-| mode, m | Max, Fit, Zoom, Stretch | **Max**: If both width and height are present then the image will be resized to the max of whatever paramter, and the width will scale accordingly. <br> **Fit**: When both width and height are present fit the image into the container without adjusting the ratio.  <br> **Zoom**: When both width and height are present zoom the image in to fill the space. <br> **Stretch** (default): When both width and height are present stretch the image to fit the container. |
+| mode, m | Max, Fit, Zoom, Stretch | **Max**: If both width and height are present then the image will be resized to the max of whatever parameter, and the width will scale accordingly. <br> **Fit**: When both width and height are present fit the image into the container without adjusting the ratio.  <br> **Zoom**: When both width and height are present zoom the image in to fill the space. <br> **Stretch** (default): When both width and height are present stretch the image to fit the container. |
 | shape, s | Circle, Ellipse, RoundedRectangle  | Mask out the image to be of a certain shape. |
 | corner, c | Integer | The corner radius when shape is RoundedRectangle. Default is 10. |
 | text, t | String | The text to display on the image |
