@@ -66,7 +66,7 @@ byte[] testJpg = File.ReadAllBytes("test.jpg");
 var result = await ImageProcessor.Process(testJpg)
                .Width(100)
                .Height(100)
-               .Mode(ImageMode.Fit)
+               .Mode(ImageMode.Zoom)
                .Shape(ImageShape.Circle)
                .ToImageAsync();
 ```
@@ -138,7 +138,7 @@ app.UseCommonImageActions(
  var result = await ImageProcessor.Process(testJpg)
                 .Width(100)
                 .Height(100)
-                .Mode(ImageMode.Fit)
+                .Mode(ImageMode.Zoom)
                 .Shape(ImageShape.Circle)
                 .ToImageAsync();
 ```
