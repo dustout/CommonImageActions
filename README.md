@@ -152,7 +152,7 @@ app.UseCommonImageActions(
 ![Visual that shows the different mode options](/CommonImageActions/wwwroot/test/ModeExplainer.png)
 
 
-## CommonImageActionSettings
+## CommonImageActionSettings (Asp.net Core)
 | Setting | Description |
 |  ------------- | ------------- |
 | PathToWatch  | What path to watch. For example `/test` will watch for images in the test directory |
