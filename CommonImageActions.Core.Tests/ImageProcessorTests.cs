@@ -67,7 +67,7 @@ namespace CommonImageActions.Core.Tests
             Assert.NotNull(result);
             Assert.NotEmpty(result);
 
-            var isImage = IsImage(result);
+            var isImage = TestHelpers.IsImage(result);
             Assert.True(isImage, "The result is not a valid image.");
         }
       
@@ -155,13 +155,6 @@ namespace CommonImageActions.Core.Tests
 
             // Assert
             Assert.NotEqual(0ul, result);
-        }
-
-        private bool IsImage(byte[] imageData)
-        {
-            using var stream = new MemoryStream(imageData);
-            using var image = SKBitmap.Decode(stream);
-            return image != null;
         }
     }
 }
