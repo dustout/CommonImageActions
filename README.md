@@ -160,3 +160,20 @@ app.UseCommonImageActions(
 | DiskCacheLocation | Where to store and retrieve the DiskCache images from. This directory needs to be writable. If it is not the system will print errors to the console, but will still continue to run. |
 | DefaultImageActions | Set a default image action to be used on all requests against a particular path. Useful when you want all images in a directory to be a specific dimension. |
 
+## Benchmarking
+Use [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) to compare the performance between 
+[Common Image Actions](https://github.com/dustout/CommonImageActions), 
+[ImageSharp](https://github.com/SixLabors/ImageSharp), and 
+[ImageFlowDotNet](https://github.com/imazen/imageflow-dotnet).
+The benchmark files can be found in the /Benchmark directory if you wish to run the same test. 
+
+#### Single Image
+When converting a single image we can see the the AllocatedBytes is half of ImageSharp, and the performance is faster than
+ImageFlow <br>
+![Benchmarking results of CommonImageActions against a single image](/Benchmark/SingleImageResults.png)
+
+#### Multiple Images
+When converting multiple images we can see where CommonImageActions really shines. What takes 547ms in CommonImageActions
+takes 4,370ms in ImageSharp and 11,600ms in ImageFlow. We can also see that the allocated memory 
+is significantly less than ImageSharp.
+![Benchmarking results of CommonImageActions against multiple images](/Benchmark/MultipleImageResults.png)
