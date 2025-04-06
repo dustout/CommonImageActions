@@ -133,7 +133,7 @@ app.UseCommonImageActions(
 ```
 
  ## Code Examples
- #### Process an image using the fluent api
+ #### Process an image using the fluent API
  ```csharp
  byte[] testJpg = File.ReadAllBytes("test.jpg");
  var result = await ImageProcessor.Process(testJpg)
