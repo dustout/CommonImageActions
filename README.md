@@ -170,7 +170,7 @@ Use [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) to compare the 
 The benchmark files can be found in the /Benchmark directory if you wish to run the same test. 
 
 #### Single Image
-When converting a single image we can see the the AllocatedBytes is half of ImageSharp, and the performance is faster than
+When converting a single image we can see the AllocatedBytes is half of ImageSharp, and the performance is faster than
 ImageFlow <br>
 ![Benchmarking results of CommonImageActions against a single image](/Benchmark/SingleImageResults.png)
 
