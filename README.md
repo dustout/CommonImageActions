@@ -138,6 +138,7 @@ app.UseCommonImageActions(
 | page, p  | Integer | (pdf only) what page to render. First page is 1.|
 
 #### Modes Visualized
+![Visual that shows the different mode options](/CommonImageActions/wwwroot/test/ModeExplainer.png)
 
 
 ## CommonImageActionSettings
