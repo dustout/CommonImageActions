@@ -24,7 +24,8 @@ improves their libraries.
 <img src="/CommonImageActions/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
 <br>
 ✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) <br>
-✅ Works with any project that supports .net standard
+✅ Works with any project that supports .net standard <br>
+✅ Fluent interface
 
 
 ## Getting Started (Asp.Net Core)
@@ -72,7 +73,7 @@ var pngImageData = await CommonImageActions.Core.ImageProcessor.ProcessImageAsyn
 
 
 
- ## Common Code Examples (Asp.net core)
+ ## Code Examples (Asp.net core)
 
  #### Watch all images in all directories
 ```csharp
@@ -129,6 +130,18 @@ app.UseCommonImageActions(
         RemoteFileServerUrl = "https://dustingamester.com/img/"
     }
 );
+```
+
+ ## Code Examples
+ #### Process an image using the fluent API
+ ```csharp
+ byte[] testJpg = File.ReadAllBytes("test.jpg");
+ var result = await ImageProcessor.Process(testJpg)
+                .Width(100)
+                .Height(100)
+                .Mode(ImageMode.Fit)
+                .Shape(ImageShape.Circle)
+                .ToImageAsync();
 ```
 
 ## URL Parameters (Asp.net Core)
