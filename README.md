@@ -60,7 +60,7 @@ app.UseCommonImageActions(
 ```
 
 #### Pass image bytes to the ImageProcessor.Process
-Get the image `bytes[]` and pass those bytes along with imageActions to the `ImageProcessor.ProcessImageAsync` function
+Get the image `bytes[]` and pass those bytes to the `ImageProcessor.Process` function
 ```csharp
 byte[] testJpg = File.ReadAllBytes("test.jpg");
 var result = await ImageProcessor.Process(testJpg)
