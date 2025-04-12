@@ -63,6 +63,16 @@ namespace CommonImageActions.Pdf.Tests.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] testJpg {
+            get {
+                object obj = ResourceManager.GetObject("testJpg", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] testPdf {
             get {
                 object obj = ResourceManager.GetObject("testPdf", resourceCulture);

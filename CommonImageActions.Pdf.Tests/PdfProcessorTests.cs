@@ -54,6 +54,48 @@ namespace CommonImageActions.Pdf.Tests
         }
 
         [Fact]
+        public async Task ProcessPdfAsync_WithByteArray_ShouldGetPageTwoPdf()
+        {
+            // Arrange
+            var pdfData = Properties.Resources.testPdf;
+            var actions = new ImageActions()
+            {
+                Format = SkiaSharp.SKEncodedImageFormat.Png,
+                Height = 100,
+                Page = 2
+            };
+
+            // Act
+            var result = await PdfProcessor.ProcessPdfAsync(pdfData, actions);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.IsType<byte[]>(result);
+
+            var isImage = TestHelpers.IsImage(result);
+            Assert.True(isImage, "The result is not a valid image.");
+        }
+
+        [Fact]
+        public async Task ProcessPdfAsync_WithByteArray_ShouldFailLoadingPdf()
+        {
+            // Arrange
+            var imageData = Properties.Resources.testJpg;
+            var actions = new ImageActions()
+            {
+                Format = SkiaSharp.SKEncodedImageFormat.Png,
+                Height = 100,
+                Page = 2
+            };
+
+            await Assert.ThrowsAsync<PdfException>(async ()=>
+            {
+                await PdfProcessor.ProcessPdfAsync(imageData, actions);
+            });
+        }
+
+
+        [Fact]
         public async Task ProcessPdfAsync_WithStream_ShouldReturnProcessedPdf()
         {
             // Arrange
