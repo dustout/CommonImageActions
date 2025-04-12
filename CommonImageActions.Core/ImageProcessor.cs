@@ -48,7 +48,7 @@ namespace CommonImageActions.Core
         {
             if (actions == null)
             {
-                throw new ImageProcessorException("Image actions can not be null");
+                throw new ArgumentNullException("Image actions can not be null");
             }
 
             //copy stream into memory asyncronously
