@@ -10,9 +10,14 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/dustout/CommonImageActions</RepositoryUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\CommonImageActions.SampleAspnetCoreProject\wwwroot\test\logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Include="..\LICENSE.txt">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
