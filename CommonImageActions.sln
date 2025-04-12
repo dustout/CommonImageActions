@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Pdf.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.SampleAspNetProject", "CommonImageActions.SampleAspnetCoreProject\CommonImageActions.SampleAspNetProject.csproj", "{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Sample Projects", "Sample Projects", "{93BBC339-A410-4168-9595-6875A2527DB8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,6 +52,11 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F58894B0-F981-4DE5-B78F-4A685044502D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82} = {93BBC339-A410-4168-9595-6875A2527DB8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B380BA7D-28B5-4064-A30F-B0DDAE51012E}
