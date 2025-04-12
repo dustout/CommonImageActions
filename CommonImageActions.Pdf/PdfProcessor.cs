@@ -15,6 +15,11 @@ namespace CommonImageActions.Pdf
     {
         private static bool isPdfiumInitalized = false;
 
+        public static PdfActionQueryBuilder Process(byte[] imageData)
+        {
+            return new PdfActionQueryBuilder(imageData);
+        }
+
         public static async Task<IEnumerable<byte[]>> ProcessPdfsAsync(IEnumerable<byte[]> pdfsData, ImageActions actions)
         {
             var returnList = new List<byte[]>();
@@ -60,7 +65,7 @@ namespace CommonImageActions.Pdf
             return await ProcessHelperAsync(imageData, actions);
         }
 
-        private static async Task<byte[]> ProcessHelperAsync(byte[] pdfData, ImageActions actions)
+        internal static async Task<byte[]> ProcessHelperAsync(byte[] pdfData, ImageActions actions)
         {
             byte[] returnValue = null;
 
