@@ -143,6 +143,17 @@ app.UseCommonImageActions(
                 .ToImageAsync();
 ```
 
+ #### Process a pdf using the fluent API
+ ```csharp
+ byte[] testPdf = File.ReadAllBytes("test.pdf");
+ var result = await PdfProcessor.Process(testPdf)
+                .Width(100)
+                .Height(100)
+                .Mode(ImageMode.Zoom)
+                .Shape(ImageShape.Circle)
+                .ToImageAsync();
+```
+
 ## URL Parameters (Asp.net Core)
 | Parameter | Possible Values | Description |
 |  ------------- | ------------- | ------------- |
