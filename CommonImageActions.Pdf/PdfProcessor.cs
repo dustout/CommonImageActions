@@ -162,7 +162,7 @@ namespace CommonImageActions.Pdf
             return returnValue;
         }
 
-        private static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
+        public static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
         {
             int bytesPerPixel = 4; // BGRA32
 
