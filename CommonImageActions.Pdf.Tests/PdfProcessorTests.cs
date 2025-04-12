@@ -88,7 +88,7 @@ namespace CommonImageActions.Pdf.Tests
                 Page = 2
             };
 
-            await Assert.ThrowsAsync<PdfException>(async ()=>
+            await Assert.ThrowsAsync<PdfProcessorException>(async ()=>
             {
                 await PdfProcessor.ProcessPdfAsync(imageData, actions);
             });
