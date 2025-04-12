@@ -79,7 +79,7 @@ namespace CommonImageActions.Pdf
                     var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), pdfData.Length, actions.PdfPassword);
                     if (pdfDocument == null)
                     {
-                        throw new NotImplementedException("Error loading pdf");
+                        throw new PdfException("Error loading pdf");
                     }
 
                     try
@@ -88,7 +88,7 @@ namespace CommonImageActions.Pdf
                         var pageCount = fpdfview.FPDF_GetPageCount(pdfDocument);
                         if (pageCount == 0)
                         {
-                            throw new NotImplementedException("Error loading pdf");
+                            throw new PdfException("Error getting pdf page count");
                         }
 
                         //set requested page, if not requested default to first page
@@ -103,7 +103,7 @@ namespace CommonImageActions.Pdf
                         var pdfPage = fpdfview.FPDF_LoadPage(pdfDocument, requestedPage);
                         if (pdfPage == null)
                         {
-                            throw new NotImplementedException("Error loading pdf");
+                            throw new PdfException($"Error loading pdf page {requestedPage}");
                         }
 
                         try
