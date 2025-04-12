@@ -48,7 +48,7 @@ namespace CommonImageActions.Core
         {
             if (actions == null)
             {
-                throw new ArgumentNullException(nameof(actions));
+                throw new ArgumentNullException("Image actions can not be null");
             }
 
             //copy stream into memory asyncronously
@@ -155,7 +155,7 @@ namespace CommonImageActions.Core
 
                 if (encodedImage == null)
                 {
-                    throw new Exception("Error processing image");
+                    throw new ImageProcessorException("Error processing image");
                 }
             });
 
@@ -167,7 +167,7 @@ namespace CommonImageActions.Core
             //make sure image was loaded successfully
             if (newImage == null)
             {
-                throw new Exception("Error processing image");
+                throw new ImageProcessorException("Error processing image");
             }
 
             // when only width is set, calculate the height
@@ -197,7 +197,7 @@ namespace CommonImageActions.Core
             //the image actions width and height should always be set from here on, have a sanity check just in case
             if (imageActions.Width.HasValue == false || imageActions.Height.HasValue == false)
             {
-                throw new NotImplementedException("Width and Height could not be calculated");
+                throw new ImageProcessorException("Width and Height could not be calculated");
             }
 
             // if the mode is max then constrain dimensions to requested width and height

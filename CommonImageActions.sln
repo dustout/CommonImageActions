@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Pdf", "C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Core.Tests", "CommonImageActions.Core.Tests\CommonImageActions.Core.Tests.csproj", "{F58894B0-F981-4DE5-B78F-4A685044502D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Pdf.Tests", "CommonImageActions.Pdf.Tests\CommonImageActions.Pdf.Tests.csproj", "{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{F58894B0-F981-4DE5-B78F-4A685044502D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F58894B0-F981-4DE5-B78F-4A685044502D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F58894B0-F981-4DE5-B78F-4A685044502D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
