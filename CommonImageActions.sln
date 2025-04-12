@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35919.96
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.SampleAspNetProject", "CommonImageActions\CommonImageActions.SampleAspNetProject.csproj", "{88296500-D2CB-4CED-B982-A9A76D85345F}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Core", "CommonImageActions.Core\CommonImageActions.Core.csproj", "{3E08E2F3-00A4-461E-B7A7-C881D62E9950}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.AspNetCore", "CommonImageActions.AspNetCore\CommonImageActions.AspNetCore.csproj", "{8654F81E-2B10-4FAD-AB86-63855D3289B1}"
@@ -15,16 +13,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Core.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.Pdf.Tests", "CommonImageActions.Pdf.Tests\CommonImageActions.Pdf.Tests.csproj", "{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonImageActions.SampleAspNetProject", "CommonImageActions.SampleAspnetCoreProject\CommonImageActions.SampleAspNetProject.csproj", "{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{88296500-D2CB-4CED-B982-A9A76D85345F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{88296500-D2CB-4CED-B982-A9A76D85345F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{88296500-D2CB-4CED-B982-A9A76D85345F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{88296500-D2CB-4CED-B982-A9A76D85345F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3E08E2F3-00A4-461E-B7A7-C881D62E9950}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3E08E2F3-00A4-461E-B7A7-C881D62E9950}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E08E2F3-00A4-461E-B7A7-C881D62E9950}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -45,6 +41,10 @@ Global
 		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0642F5AA-C6C2-4500-B3D3-2DEDA9991EE6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F3BE2DB-F0F1-6220-0B07-4C1247ECFD82}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
