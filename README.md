@@ -13,7 +13,7 @@ and Asp.net core projects. This library is highly performant both in execution t
 extends Microsoft libraries. This library should continue to increase in performance as Microsoft further
 improves their libraries.
 
-![Animated gif that shows the functionality of common image actions](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions/wwwroot/test/ExplainerImage.gif)
+![Animated gif that shows the functionality of common image actions](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions.SampleAspnetCoreProject/wwwroot/test/ExplainerImage.gif)
 
 ## Features
 ✅ Resize images\
@@ -21,7 +21,7 @@ improves their libraries.
 ✅ PDF support\
 ✅ Fast and memory efficient\
 ✅ Create user profile placeholders where background auto changes based on name
-<img src="https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
+<img src="https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions.SampleAspnetCoreProject/wwwroot/test/ProfilePictureStrip.png" alt="Example of user profile placeholders" style="height: 18px;">
 \
 ✅ Resize through url in asp.net core (`.jpg?w=50&m=zoom`) \
 ✅ Works with any project that supports .net standard \
@@ -161,7 +161,7 @@ app.UseCommonImageActions(
 | page, p  | Integer | (pdf only) what page to render. First page is 1.|
 
 #### Modes Visualized
-![Visual that shows the different mode options](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions/wwwroot/test/ModeExplainer.png)
+![Visual that shows the different mode options](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions.SampleAspnetCoreProject/wwwroot/test/ModeExplainer.png)
 
 
 ## CommonImageActionSettings (Asp.net Core)
