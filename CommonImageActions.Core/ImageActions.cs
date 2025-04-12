@@ -57,7 +57,16 @@ namespace CommonImageActions.Core
 
         public bool HasAnyActions()
         {
-            return Width.HasValue || Height.HasValue || Format.HasValue || Page.HasValue;
+            return Width.HasValue 
+                || Height.HasValue 
+                || Format.HasValue 
+                || Page.HasValue 
+                || Shape.HasValue 
+                || Mode.HasValue 
+                || ChooseImageColorFromTextValue.HasValue
+                || CornerRadius.HasValue
+                || string.IsNullOrEmpty(ImageColor) == false
+                || string.IsNullOrEmpty(Text) == false;
         }
     }
 }

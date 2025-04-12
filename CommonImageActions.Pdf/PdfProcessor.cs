@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CommonImageActions.Pdf
@@ -14,6 +15,8 @@ namespace CommonImageActions.Pdf
     public static class PdfProcessor
     {
         private static bool isPdfiumInitalized = false;
+
+        private static Mutex mut = new Mutex();
 
         public static PdfActionQueryBuilder Process(byte[] imageData)
         {
@@ -72,8 +75,17 @@ namespace CommonImageActions.Pdf
             //make sure pdfium is initalized
             if (isPdfiumInitalized == false)
             {
-                fpdfview.FPDF_InitLibrary();
-                isPdfiumInitalized = true;
+                mut.WaitOne();
+
+                //double check if another thread has already initialized it
+                if (isPdfiumInitalized == false)
+                {
+                    //initialize pdfium
+                    fpdfview.FPDF_InitLibrary();
+                    isPdfiumInitalized = true;
+                }
+
+                mut.ReleaseMutex();
             }
 
             await Task.Run(() =>
@@ -81,6 +93,7 @@ namespace CommonImageActions.Pdf
                 var handle = GCHandle.Alloc(pdfData, GCHandleType.Pinned);
                 try
                 {
+                    mut.WaitOne();
                     var pdfDocument = fpdfview.FPDF_LoadMemDocument(handle.AddrOfPinnedObject(), pdfData.Length, actions.PdfPassword);
                     if (pdfDocument == null)
                     {
@@ -160,6 +173,7 @@ namespace CommonImageActions.Pdf
                 }
                 finally
                 {
+                    mut.ReleaseMutex();
                     handle.Free();
                 }
             });
