@@ -36,13 +36,7 @@ improves their libraries.
 
 
 #### Add UseCommonImageActions Middleware
-Add the middleware to your startup file. Make sure that it is above `app.UseStaticFiles()`. The default implementation 
-will watch for all supported image files based on the file extension.
-```csharp
-app.UseCommonImageActions();
-```
-
-You can watch a specific directory by setting the `PathToWatch` property in the `CommonImageActionSettings` object.
+Add the middleware to your startup file. Make sure that it is above `app.UseStaticFiles()`. You can watch a specific directory by setting the `PathToWatch` property in the `CommonImageActionSettings` object.
 ```csharp
 app.UseCommonImageActions(
     new CommonImageActionSettings()
