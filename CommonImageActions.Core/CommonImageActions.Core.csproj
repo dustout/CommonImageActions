@@ -8,8 +8,10 @@
     <RepositoryUrl>https://github.com/dustout/CommonImageActions</RepositoryUrl>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>1.0.8</Version>
+    <Version>1.0.9</Version>
     <PackageIcon>logo.png</PackageIcon>
+    <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
 
