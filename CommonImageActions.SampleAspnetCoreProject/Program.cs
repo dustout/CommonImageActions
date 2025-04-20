@@ -25,7 +25,8 @@ app.UseCommonImageActions(
             Format = SkiaSharp.SKEncodedImageFormat.Png,
             Shape = ImageShape.Circle,
             AsInitials = true,
-            ChooseImageColorFromTextValue = true
+            ChooseImageColorFromTextValue = true,
+            Mode = ImageMode.Max
         }
     }
 );

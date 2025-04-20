@@ -89,25 +89,27 @@ app.UseCommonImageActions(
 );
 ```
 
-#### Generate user placeholders and cache the response to the disk
+#### Generate user icons
 ```csharp
 //the ChooseImageColorFromTextValue ensures that the following will have a different background color
 //https://localhost:44302/profilepicture/profile.png?t=DustinGa
 //https://localhost:44302/profilepicture/profile.png?t=DustinG
+//https://localhost:44302/profilepicture/DustinGam.png
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/profilepicture",
+        PathToWatch = "/user/icons/",
+        UseFileNameAsText = true,
         IsVirtual = true,
-        UseDiskCache = true,
         DefaultImageActions = new ImageActions()
         {
-            Height = 50,
-            Width = 50,
+            Height = 192,
+            Width = 192,
             Format = SkiaSharp.SKEncodedImageFormat.Png,
             Shape = ImageShape.Circle,
             AsInitials = true,
-            ChooseImageColorFromTextValue = true
+            ChooseImageColorFromTextValue = true,
+            Mode = ImageMode.Max
         }
     }
 );
