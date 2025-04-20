@@ -65,6 +65,16 @@ namespace CommonImageActions.AspNetCore
                 var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
                 byte[] imageData = null;
 
+                //if the file name is to be used as text then set it
+                if (_options.UseFileNameAsText)
+                {
+                    var fileName = Path.GetFileNameWithoutExtension(imageFileRelativePath);
+                    if (string.IsNullOrEmpty(fileName) == false)
+                    {
+                        imageActions.Text = fileName;
+                    }
+                }
+
                 if (_options.UseDiskCache)
                 {
                     //make sure default disk cache location is set

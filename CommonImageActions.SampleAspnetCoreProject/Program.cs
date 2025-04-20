@@ -15,6 +15,24 @@ app.UseCommonImageActions(
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
+        PathToWatch = "/user/icons/",
+        UseFileNameAsText = true,
+        IsVirtual = true,
+        DefaultImageActions = new ImageActions()
+        {
+            Height = 192,
+            Width = 192,
+            Format = SkiaSharp.SKEncodedImageFormat.Png,
+            Shape = ImageShape.Circle,
+            AsInitials = true,
+            ChooseImageColorFromTextValue = true
+        }
+    }
+);
+
+app.UseCommonImageActions(
+    new CommonImageActionSettings()
+    {
         PathToWatch = "/logos",
         DefaultImageActions = new ImageActions()
         {

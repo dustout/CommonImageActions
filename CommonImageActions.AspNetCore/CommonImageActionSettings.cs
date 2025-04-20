@@ -30,6 +30,8 @@ namespace CommonImageActions.AspNetCore
 
         public string RemoteFileServerUrl { get; set; }
 
+        public bool UseFileNameAsText { get; set; }
+
         public bool UseDiskCache { get; set; }
 
         public string DiskCacheLocation { get; set; }
