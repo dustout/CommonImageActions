@@ -178,6 +178,7 @@ app.UseCommonImageActions(
 | UseDiskCache | When true the system will save and return cached images. This can dramatically improve performance. |
 | DiskCacheLocation | Where to store and retrieve the DiskCache images from. This directory needs to be writable. If it is not the system will print errors to the console, but will still continue to run. |
 | DefaultImageActions | Set a default image action to be used on all requests against a particular path. Useful when you want all images in a directory to be a specific dimension. |
+| UseFileNameAsText | Use the filename to set the text value. For example `Dustin_Test.png` would be the same as `image.png?t=Dustin_Test` |
 
 ## Benchmarking
 Use [BenchmarkDotNet](https://github.com/dotnet/BenchmarkDotNet) to compare the performance between 
