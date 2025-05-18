@@ -488,42 +488,6 @@ namespace CommonImageActions.Core
             return encodedImage;
         }
 
-        public static float GetMaxFontSize(double sectorSize, SKTypeface typeface, string text, float degreeOfCertainty = 1f, float maxFont = 100f)
-        {
-            var max = maxFont; // The upper bound. We know the font size is below this value
-            var min = 0f; // The lower bound, We know the font size is equal to or above this value
-            var last = -1f; // The last calculated value.
-            float value;
-            while (true)
-            {
-                value = min + ((max - min) / 2); // Find the half way point between Max and Min
-                using (SKFont ft = new SKFont(typeface, value))
-                using (SKPaint paint = new SKPaint(ft))
-                {
-                    if (paint.MeasureText(text) > sectorSize) // Measure the string size at this font size
-                    {
-                        // The text size is too large
-                        // therefore the max possible size is below value
-                        last = value;
-                        max = value;
-                    }
-                    else
-                    {
-                        // The text fits within the area
-                        // therefore the min size is above or equal to value
-                        min = value;
-
-                        // Check if this value is within our degree of certainty
-                        if (Math.Abs(last - value) <= degreeOfCertainty)
-                            return last; // Value is within certainty range, we found the best font size!
-
-                        //This font difference is not within our degree of certainty
-                        last = value;
-                    }
-                }
-            }
-        }
-
         public static UInt64 CalculateHash(string read)
         {
             UInt64 hashedValue = 3074457345618258791ul;
