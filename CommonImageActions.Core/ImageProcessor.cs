@@ -392,7 +392,7 @@ namespace CommonImageActions.Core
                     textToPrint = GetInitials(imageActions.Text);
                 }
 
-                var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyle.Bold);
+                var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Black, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
                 var myFontSize = (int)(imageActions.Height.Value * 0.85);
 
                 // Set up paint for text
