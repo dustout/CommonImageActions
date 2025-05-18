@@ -95,13 +95,8 @@ namespace CommonImageActions.Core
                     //set the text color
                     if (!string.IsNullOrEmpty(actions.ImageColor))
                     {
-                        //try regular
-                        if (SKColor.TryParse(actions.ImageColor, out var newColor))
-                        {
-                            virtualImageColor = newColor;
-                        }
                         //try hex
-                        else if (SKColor.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
+                        if (SKColor.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
                         {
                             virtualImageColor = newColorFromHex;
                         }
@@ -423,13 +418,8 @@ namespace CommonImageActions.Core
                 //set the text color
                 if (!string.IsNullOrEmpty(imageActions.TextColor))
                 {
-                    //try regular
-                    if (SKColor.TryParse(imageActions.TextColor, out var newColor))
-                    {
-                        paint.Color = newColor;
-                    }
                     //try hex
-                    else if (SKColor.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
+                    if (SKColor.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
                     {
                         paint.Color = newColorFromHex;
                     }

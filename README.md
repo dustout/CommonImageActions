@@ -160,8 +160,8 @@ app.UseCommonImageActions(
 | corner, cr | Integer | The corner radius when shape is RoundedRectangle. Default is 10. |
 | text, t | String | The text to display on the image |
 | initials, in | Boolean | When true will only display initials of text. For example DustinG is displayed as DG. |
-| color, c | String (ffccff or blue) | Set a color for the image |
-| textColor, tc | String (ffccff or blue) | Set the color of the text |
+| color, c | String ffccff | Set a color for the image |
+| textColor, tc | String ffccff | Set the color of the text |
 | colorFromText, ft | Boolean | When true a color will be generated based on a hash of the text. The list of colors can be updated in `ImageProcessor.BackgroundColours`. |
 | format, f | Bmp, Gif, Ico, Jpeg, Png, Wbmp, Webp, Pkm, Ktx, Astc, Dng, Heif, Avif | What format to export the resulting image as. Default is png.  |
 | password, pw | String | (pdf only) password to open pdf |
