@@ -95,9 +95,7 @@ app.UseCommonImageActions(
     }
 );
 
-
+app.UseDefaultFiles();
 app.UseStaticFiles();
-
-app.MapGet("/", () => "Hello World!");
 
 app.Run();
