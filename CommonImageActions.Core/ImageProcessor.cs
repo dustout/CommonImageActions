@@ -211,7 +211,7 @@ namespace CommonImageActions.Core
             // Create a new bitmap with the new dimensions
             var skBmp = new SKBitmap(imageActions.Width.Value, imageActions.Height.Value);
             var recorder = new SKPictureRecorder();
-            var rect = new SKRect(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+            var rect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
             var canvas = recorder.BeginRecording(rect);
 
             //if no shape specified, but a corner radius is then set shape to rounded rectangle
@@ -244,14 +244,14 @@ namespace CommonImageActions.Core
                     var a = new SKPath();
                     var centerX = imageActions.Width.Value / 2;
                     var centerY = imageActions.Height.Value / 2;
-                    var r = new SKRect(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     a.AddOval(r);
                     canvas.ClipPath(a);
                 }
                 else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
                     var a = new SKPath();
-                    var r = new SKRect(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     if (imageActions.CornerRadius.HasValue)
                     {
 
@@ -335,12 +335,12 @@ namespace CommonImageActions.Core
                 case ImageMode.Max:
                     if (isOddRotation)
                     {
-                        var drawRect = new SKRect(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
+                        var drawRect = GetSKRectByWidthAndHeight(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
                         canvas.DrawImage(newImage, drawRect, paint:imagePaint);
                     }
                     else
                     {
-                        var drawRect = new SKRect(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                        var drawRect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                         canvas.DrawImage(newImage, drawRect, paint: imagePaint);
                     }
                     break;
@@ -354,11 +354,11 @@ namespace CommonImageActions.Core
                     }
                     var fitScaledWidth = (int)(newImage.Width * fitScale);
                     var fitScaledHeight = (int)(newImage.Height * fitScale);
-                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
-                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
-                    var drawRect2 = new SKRect(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2f;
+                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2f;
+                    var drawRect2 = GetSKRectByWidthAndHeight(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
 
-                    canvas.DrawImage(newImage, drawRect2, paint: imagePaint);
+                    canvas.DrawImage(newImage, drawRect2);
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
@@ -372,7 +372,7 @@ namespace CommonImageActions.Core
                     var scaledHeight = (int)(newImage.Height * scale);
                     var offsetX = (imageActions.Width.Value - scaledWidth) / 2;
                     var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
-                    var drawRect3 = new SKRect(offsetX, offsetY, scaledWidth, scaledHeight);
+                    var drawRect3 = GetSKRectByWidthAndHeight(offsetX, offsetY, scaledWidth, scaledHeight);
                     canvas.DrawImage(newImage, drawRect3, paint: imagePaint);
                     break;
             }
@@ -476,6 +476,11 @@ namespace CommonImageActions.Core
             }
 
             return encodedImage;
+        }
+
+        public static SKRect GetSKRectByWidthAndHeight(float left, float top, float width, float height)
+        {
+            return new SKRect(left, top, width + left, top + height);
         }
 
         public static UInt64 CalculateHash(string read)
