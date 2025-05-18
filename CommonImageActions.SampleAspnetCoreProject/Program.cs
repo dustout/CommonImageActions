@@ -50,15 +50,15 @@ app.UseCommonImageActions(
     {
         PathToWatch = "/profilepicture",
         IsVirtual = true,
-        UseDiskCache = true,
+        UseFileNameAsText = true,
         DefaultImageActions = new ImageActions()
         {
-            Height = 50,
-            Width = 50,
+            Height = 100,
+            Width = 100,
             Format = SkiaSharp.SKEncodedImageFormat.Png,
             Shape = ImageShape.Circle,
             AsInitials = true,
-            ChooseImageColorFromTextValue = true
+            ChooseImageColorFromTextValue = true,
         }
     }
 );
