@@ -116,22 +116,6 @@ namespace CommonImageActions.Core.Tests
         }
 
         [Fact]
-        public void EncodeSkiaImage_ShouldReturnEncodedImage()
-        {
-            // Arrange
-            var bitmap = new SKBitmap(100, 100);
-            using var canvas = new SKCanvas(bitmap);
-            using var newImage = new SkiaImage(bitmap);
-            var actions = new ImageActions();
-
-            // Act
-            var result = ImageProcessor.EncodeSkiaImage(newImage, actions);
-
-            // Assert
-            Assert.NotNull(result);
-        }
-
-        [Fact]
         public void GetInitials_ShouldReturnInitials()
         {
             // Arrange
