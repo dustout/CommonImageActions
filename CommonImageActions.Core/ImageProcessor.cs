@@ -324,6 +324,12 @@ namespace CommonImageActions.Core
                 rotationOffsetX = rotationOffsetY * -1;
             }
 
+            var imagePaint = new SKPaint
+            {
+                IsAntialias = true,
+                FilterQuality = SKFilterQuality.High
+            };
+
             //write to the canvas
             switch (imageActions.Mode)
             {
@@ -335,12 +341,12 @@ namespace CommonImageActions.Core
                     if (isOddRotation)
                     {
                         var drawRect = new SKRect(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
-                        canvas.DrawImage(newImage, drawRect);
+                        canvas.DrawImage(newImage, drawRect, paint:imagePaint);
                     }
                     else
                     {
                         var drawRect = new SKRect(0, 0, imageActions.Width.Value, imageActions.Height.Value);
-                        canvas.DrawImage(newImage, drawRect);
+                        canvas.DrawImage(newImage, drawRect, paint: imagePaint);
                     }
                     break;
 
@@ -357,7 +363,7 @@ namespace CommonImageActions.Core
                     var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
                     var drawRect2 = new SKRect(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
 
-                    canvas.DrawImage(newImage, drawRect2);
+                    canvas.DrawImage(newImage, drawRect2, paint: imagePaint);
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
@@ -372,7 +378,7 @@ namespace CommonImageActions.Core
                     var offsetX = (imageActions.Width.Value - scaledWidth) / 2;
                     var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
                     var drawRect3 = new SKRect(offsetX, offsetY, scaledWidth, scaledHeight);
-                    canvas.DrawImage(newImage, drawRect3);
+                    canvas.DrawImage(newImage, drawRect3, paint: imagePaint);
                     break;
             }
 
