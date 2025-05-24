@@ -40,6 +40,10 @@ namespace CommonImageActions.AspNetCore
 
         public static string DefaultDiskCacheLocation { get; set; }
 
+        public static int MaxUrlWidth { get; set; } = 5000;
+
+        public static int MaxUrlHeight { get; set; } = 5000;
+
         public static string[] ValidImageExtensions = {
             ".bmp",
             ".gif",

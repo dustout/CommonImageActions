@@ -281,13 +281,21 @@ namespace CommonImageActions.AspNetCore
             var widthString = query["width"] ?? query["w"];
             if (int.TryParse(widthString, out int width))
             {
-                imageActions.Width = width;
+                //sanity check to make sure no bad actor requests a number that may eat all the ram in the system
+                if(width < CommonImageActionSettings.MaxUrlWidth)
+                {
+                    imageActions.Width = width;
+                }
             }
 
             var heightString = query["height"] ?? query["h"];
             if (int.TryParse(heightString, out int height))
             {
-                imageActions.Height = height;
+                //sanity check to make sure no bad actor requests a number that may eat all the ram in the system
+                if (width < CommonImageActionSettings.MaxUrlHeight)
+                {
+                    imageActions.Height = height;
+                }
             }
 
             var pageString = query["Page"] ?? query["p"];
