@@ -321,7 +321,6 @@ namespace CommonImageActions.Core
 
             var imagePaint = new SKPaint
             {
-                IsAntialias = true,
                 FilterQuality = SKFilterQuality.High
             };
 
