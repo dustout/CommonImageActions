@@ -1,5 +1,4 @@
 ﻿using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Graphics.Skia;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -91,25 +90,20 @@ namespace CommonImageActions.Core
 
                 if (isVirtual)
                 {
-                    Color virtualImageColor = null;
+                    SKColor virtualImageColor;
 
                     //set the text color
                     if (!string.IsNullOrEmpty(actions.ImageColor))
                     {
-                        //try regular
-                        if (Color.TryParse(actions.ImageColor, out var newColor))
-                        {
-                            virtualImageColor = newColor;
-                        }
                         //try hex
-                        else if (Color.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
+                        if (SKColor.TryParse($"#{actions.ImageColor}", out var newColorFromHex))
                         {
                             virtualImageColor = newColorFromHex;
                         }
                         //fall back to white if they both fail
                         else
                         {
-                            virtualImageColor = Colors.Black;
+                            virtualImageColor = SKColors.Black;
                         }
                     }
                     else if (actions.ChooseImageColorFromTextValue.HasValue
@@ -123,24 +117,24 @@ namespace CommonImageActions.Core
                         {
                             backgroundColor = $"#{backgroundColor}";
                         }
-                        if (Color.TryParse(backgroundColor, out var newColor))
+                        if (SKColor.TryParse(backgroundColor, out var newColor))
                         {
                             virtualImageColor = newColor;
                         }
                         else
                         {
-                            virtualImageColor = Colors.Black;
+                            virtualImageColor = SKColors.Black;
                         }
                     }
                     else
                     {
-                        virtualImageColor = Colors.Black;
+                        virtualImageColor = SKColors.Black;
                     }
 
                     var newBitmap = new SKBitmap(100, 100);
                     using var canvas = new SKCanvas(newBitmap);
-                    canvas.Clear(virtualImageColor.AsSKColor());
-                    using var newImage = new SkiaImage(newBitmap);
+                    canvas.Clear(virtualImageColor);
+                    using var newImage = SKImage.FromBitmap(newBitmap);
                     encodedImage = EncodeSkiaImage(newImage, actions);
                 }
                 else
@@ -148,7 +142,7 @@ namespace CommonImageActions.Core
                     using var stream = new MemoryStream(imageData);
                     using var codec = SKCodec.Create(stream);
                     using var originalBitmap = SKBitmap.Decode(codec);
-                    using var newImage = new SkiaImage(originalBitmap);
+                    using var newImage = SKImage.FromBitmap(originalBitmap);
 
                     encodedImage = EncodeSkiaImage(newImage, actions, codec);
                 }
@@ -162,7 +156,7 @@ namespace CommonImageActions.Core
             return encodedImage.ToArray();
         }
 
-        public static SKData EncodeSkiaImage(SkiaImage newImage, ImageActions imageActions, SKCodec codec = null)
+        public static SKData EncodeSkiaImage(SKImage newImage, ImageActions imageActions, SKCodec codec = null)
         {
             //make sure image was loaded successfully
             if (newImage == null)
@@ -215,8 +209,10 @@ namespace CommonImageActions.Core
             }
 
             // Create a new bitmap with the new dimensions
-            var skBmp = new SkiaBitmapExportContext(imageActions.Width.Value, imageActions.Height.Value, 1.0f);
-            var canvas = skBmp.Canvas;
+            var skBmp = new SKBitmap(imageActions.Width.Value, imageActions.Height.Value);
+            var recorder = new SKPictureRecorder();
+            var rect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+            var canvas = recorder.BeginRecording(rect);
 
             //if no shape specified, but a corner radius is then set shape to rounded rectangle
             if (imageActions.Shape.HasValue == false && imageActions.CornerRadius.HasValue)
@@ -239,30 +235,33 @@ namespace CommonImageActions.Core
                     var centerX = imageActions.Width.Value / 2;
                     var centerY = imageActions.Height.Value / 2;
 
-                    var a = new PathF();
-                    a.AppendCircle(centerX, centerY, radius);
-                    canvas.ClipPath(a);
+                    var a = new SKPath();
+                    a.AddCircle(centerX, centerY, radius);
+                    canvas.ClipPath(a, antialias:true);
                 }
                 else if (imageActions.Shape == ImageShape.Ellipse)
                 {
-                    var a = new PathF();
+                    var a = new SKPath();
                     var centerX = imageActions.Width.Value / 2;
                     var centerY = imageActions.Height.Value / 2;
-                    a.AppendEllipse(0, 0, imageActions.Width.Value, imageActions.Height.Value);
-                    canvas.ClipPath(a);
+                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    a.AddOval(r);
+                    canvas.ClipPath(a, antialias:true);
                 }
                 else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
-                    var a = new PathF();
+                    var a = new SKPath();
+                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     if (imageActions.CornerRadius.HasValue)
                     {
-                        a.AppendRoundedRectangle(0, 0, imageActions.Width.Value, imageActions.Height.Value, imageActions.CornerRadius.Value);
+
+                        a.AddRoundRect(r, imageActions.CornerRadius.Value, imageActions.CornerRadius.Value);
                     }
                     else
                     {
-                        a.AppendRoundedRectangle(0, 0, imageActions.Width.Value, imageActions.Height.Value, CornerRadius);
+                        a.AddRoundRect(r, CornerRadius, CornerRadius);
                     }
-                    canvas.ClipPath(a);
+                    canvas.ClipPath(a, antialias:true);
                 }
             }
 
@@ -279,33 +278,33 @@ namespace CommonImageActions.Core
                         break;
 
                     case SKEncodedOrigin.TopRight:
-                        canvas.Rotate(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         break;
 
                     case SKEncodedOrigin.BottomRight:
-                        canvas.Rotate(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         break;
 
                     case SKEncodedOrigin.BottomLeft:
                         break;
 
                     case SKEncodedOrigin.LeftTop:
-                        canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.RightTop:
-                        canvas.Rotate(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.RightBottom:
-                        canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         isOddRotation = true;
                         break;
 
                     case SKEncodedOrigin.LeftBottom:
-                        canvas.Rotate(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
+                        canvas.RotateDegrees(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
                         isOddRotation = true;
                         break;
                 }
@@ -320,6 +319,11 @@ namespace CommonImageActions.Core
                 rotationOffsetX = rotationOffsetY * -1;
             }
 
+            var imagePaint = new SKPaint
+            {
+                FilterQuality = SKFilterQuality.High
+            };
+
             //write to the canvas
             switch (imageActions.Mode)
             {
@@ -330,11 +334,13 @@ namespace CommonImageActions.Core
                 case ImageMode.Max:
                     if (isOddRotation)
                     {
-                        canvas.DrawImage(newImage, rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
+                        var drawRect = GetSKRectByWidthAndHeight(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
+                        canvas.DrawImage(newImage, drawRect, paint:imagePaint);
                     }
                     else
                     {
-                        canvas.DrawImage(newImage, 0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                        var drawRect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                        canvas.DrawImage(newImage, drawRect, paint: imagePaint);
                     }
                     break;
 
@@ -347,9 +353,11 @@ namespace CommonImageActions.Core
                     }
                     var fitScaledWidth = (int)(newImage.Width * fitScale);
                     var fitScaledHeight = (int)(newImage.Height * fitScale);
-                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2;
-                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2;
-                    canvas.DrawImage(newImage, fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2f;
+                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2f;
+                    var drawRect2 = GetSKRectByWidthAndHeight(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
+
+                    canvas.DrawImage(newImage, drawRect2);
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
@@ -363,7 +371,8 @@ namespace CommonImageActions.Core
                     var scaledHeight = (int)(newImage.Height * scale);
                     var offsetX = (imageActions.Width.Value - scaledWidth) / 2;
                     var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
-                    canvas.DrawImage(newImage, offsetX, offsetY, scaledWidth, scaledHeight);
+                    var drawRect3 = GetSKRectByWidthAndHeight(offsetX, offsetY, scaledWidth, scaledHeight);
+                    canvas.DrawImage(newImage, drawRect3, paint: imagePaint);
                     break;
             }
 
@@ -377,55 +386,58 @@ namespace CommonImageActions.Core
                     textToPrint = GetInitials(imageActions.Text);
                 }
 
-                var myFont = new Font("Arial", weight: 800);
+                var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Black, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
                 var myFontSize = (int)(imageActions.Height.Value * 0.85);
-                canvas.Font = myFont;
+
+                // Set up paint for text
+                using var paint = new SKPaint
+                {
+                    Typeface = myTypeface,
+                    IsAntialias = true,
+                    TextSize = myFontSize,
+                    Color = SKColors.Black, // Default text color
+                    TextAlign = SKTextAlign.Center
+                };
 
                 //calculate string size where height is image height to get scale of text
-                var textSize = canvas.GetStringSize(textToPrint, myFont, myFontSize);
+                var textSize = paint.MeasureText(textToPrint);
 
                 //specify the max width that is wanted
                 var maxWidth = imageActions.Width.Value * 0.75;
 
                 // it needs to fit in the image, so if it is too narrow then we need to shrink down the font
-                if (textSize.Width > maxWidth)
+                if (textSize > maxWidth)
                 {
-                    myFontSize = (int)((maxWidth / textSize.Width) * myFontSize);
+                    myFontSize = (int)((maxWidth / textSize) * myFontSize);
                 }
 
-                //calculate the text size again with the new font size
-                var point = new Point(
-                    x: (skBmp.Width - textSize.Width) / 2,
-                    y: (skBmp.Height - textSize.Height) / 2);
-                var myTextRectangle = new Rect(point, textSize);
-                canvas.FontSize = myFontSize;
+                // Calculate maximum font size to fit text within the image
+                paint.TextSize = myFontSize;
 
                 //set the text color
                 if (!string.IsNullOrEmpty(imageActions.TextColor))
                 {
-                    //try regular
-                    if (Color.TryParse(imageActions.TextColor, out var newColor))
-                    {
-                        canvas.FontColor = newColor;
-                    }
                     //try hex
-                    else if (Color.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
+                    if (SKColor.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
                     {
-                        canvas.FontColor = newColorFromHex;
+                        paint.Color = newColorFromHex;
                     }
                     //fall back to white if they both fail
                     else
                     {
-                        canvas.FontColor = Colors.White;
+                        paint.Color = SKColors.White;
                     }
                 }
                 else
                 {
-                    canvas.FontColor = Colors.White;
+                    paint.Color = SKColors.White;
                 }
 
-                canvas.DrawString(textToPrint, myTextRectangle, HorizontalAlignment.Center, VerticalAlignment.Center, TextFlow.OverflowBounds);
+                // Calculate text position
+                var x = imageActions.Width.Value / 2f;
+                var y = (imageActions.Height.Value / 2f) - ((paint.FontMetrics.Ascent + paint.FontMetrics.Descent) / 2);
 
+                canvas.DrawText(textToPrint, x, y, paint);
             }
 
             //set export format
@@ -444,22 +456,30 @@ namespace CommonImageActions.Core
 
             //set encoding quality
             SKData encodedImage = null;
+            var picture = recorder.EndRecording();
+            var ouputSize = new SKSizeI(imageActions.Width.Value, imageActions.Height.Value);
+            var outputImage = SKImage.FromPicture(picture, ouputSize);
             switch (exportImageType)
             {
                 default:
-                    encodedImage = skBmp.SKImage.Encode(exportImageType, 100);
+                    encodedImage = outputImage.Encode(exportImageType, 100);
                     break;
 
                 case SKEncodedImageFormat.Jpeg:
-                    encodedImage = skBmp.SKImage.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
+                    encodedImage = outputImage.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
                     break;
 
                 case SKEncodedImageFormat.Gif:
-                    encodedImage = skBmp.SKImage.Encode(SKEncodedImageFormat.Gif, GifQuality);
+                    encodedImage = outputImage.Encode(SKEncodedImageFormat.Gif, GifQuality);
                     break;
             }
 
             return encodedImage;
+        }
+
+        public static SKRect GetSKRectByWidthAndHeight(float left, float top, float width, float height)
+        {
+            return new SKRect(left, top, width + left, top + height);
         }
 
         public static UInt64 CalculateHash(string read)
