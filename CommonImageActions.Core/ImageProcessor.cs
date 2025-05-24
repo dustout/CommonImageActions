@@ -237,7 +237,7 @@ namespace CommonImageActions.Core
 
                     var a = new SKPath();
                     a.AddCircle(centerX, centerY, radius);
-                    canvas.ClipPath(a);
+                    canvas.ClipPath(a, antialias:true);
                 }
                 else if (imageActions.Shape == ImageShape.Ellipse)
                 {
@@ -246,7 +246,7 @@ namespace CommonImageActions.Core
                     var centerY = imageActions.Height.Value / 2;
                     var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     a.AddOval(r);
-                    canvas.ClipPath(a);
+                    canvas.ClipPath(a, antialias:true);
                 }
                 else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
@@ -261,7 +261,7 @@ namespace CommonImageActions.Core
                     {
                         a.AddRoundRect(r, CornerRadius, CornerRadius);
                     }
-                    canvas.ClipPath(a);
+                    canvas.ClipPath(a, antialias:true);
                 }
             }
 
