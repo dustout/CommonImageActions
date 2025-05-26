@@ -11,7 +11,7 @@
 A tuned image conversion library to add common image actions like resize and mask to your .Net 
 and Asp.net core projects. This library is highly performant both in execution time and in memory use since it
 extends Microsoft libraries. This library should continue to increase in performance as Microsoft further
-improves their libraries.
+improves their libraries. SOME BS CHANGE TO TEST
 
 ![Animated gif that shows the functionality of common image actions](https://raw.githubusercontent.com/dustout/CommonImageActions/master/CommonImageActions.SampleAspnetCoreProject/wwwroot/test/ExplainerImage.gif)
 
