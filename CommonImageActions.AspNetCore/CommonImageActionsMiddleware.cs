@@ -352,6 +352,12 @@ namespace CommonImageActions.AspNetCore
                 imageActions.Shape = shape;
             }
 
+            var isGrayscale = query["gray"] ?? query["g"];
+            if (Boolean.TryParse(isGrayscale, out var asIsGrayscale))
+            {
+                imageActions.IsGrayscale = asIsGrayscale;
+            }
+
             //add unofficial support for other interpretations of mode based on feedback
             //example: I like zoom, but others feel it should be call crop, so just fall back to zoom
             //         as a general catchall for any other interpretations

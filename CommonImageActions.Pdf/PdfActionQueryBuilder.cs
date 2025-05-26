@@ -109,6 +109,12 @@ namespace CommonImageActions.Pdf
             return this;
         }
 
+        public PdfActionQueryBuilder IsGrayscale(bool isGrayscale)
+        {
+            _actions.IsGrayscale = isGrayscale;
+            return this;
+        }
+
         public PdfActionQueryBuilder Page(int page)
         {
             _actions.Page = page;

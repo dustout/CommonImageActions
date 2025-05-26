@@ -67,6 +67,12 @@ namespace CommonImageActions.Core
             return this;
         }
 
+        public ImageActionQueryBuilder IsGrayscale(bool isGrayscale)
+        {
+            _actions.IsGrayscale = isGrayscale;
+            return this;
+        }
+
         public ImageActionQueryBuilder AsInitials(bool asInitials)
         {
             _actions.AsInitials = asInitials;
