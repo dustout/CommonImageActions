@@ -51,6 +51,8 @@ namespace CommonImageActions.Core
 
         public bool? ChooseImageColorFromTextValue { get; set; }
 
+        public bool? IsGrayscale { get; set; }
+
         public SKEncodedImageFormat? Format { get; set; }
 
         public ImageMode? Mode { get; set; }

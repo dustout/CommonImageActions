@@ -237,7 +237,7 @@ namespace CommonImageActions.Core
 
                     var a = new SKPath();
                     a.AddCircle(centerX, centerY, radius);
-                    canvas.ClipPath(a, antialias:true);
+                    canvas.ClipPath(a, antialias: true);
                 }
                 else if (imageActions.Shape == ImageShape.Ellipse)
                 {
@@ -246,7 +246,7 @@ namespace CommonImageActions.Core
                     var centerY = imageActions.Height.Value / 2;
                     var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     a.AddOval(r);
-                    canvas.ClipPath(a, antialias:true);
+                    canvas.ClipPath(a, antialias: true);
                 }
                 else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
@@ -261,7 +261,7 @@ namespace CommonImageActions.Core
                     {
                         a.AddRoundRect(r, CornerRadius, CornerRadius);
                     }
-                    canvas.ClipPath(a, antialias:true);
+                    canvas.ClipPath(a, antialias: true);
                 }
             }
 
@@ -321,9 +321,20 @@ namespace CommonImageActions.Core
 
             var imagePaint = new SKPaint
             {
-                FilterQuality = SKFilterQuality.High
+                FilterQuality = SKFilterQuality.High,
             };
 
+            if(imageActions.IsGrayscale.HasValue && imageActions.IsGrayscale == true)
+            {
+                imagePaint.ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
+                {
+                    0.3f, 0.59f, 0.11f, 0, 0,
+                    0.3f, 0.59f, 0.11f, 0, 0,
+                    0.3f, 0.59f, 0.11f, 0, 0,
+                    0,    0,    0,    1, 0
+                });
+            }
+            
             //write to the canvas
             switch (imageActions.Mode)
             {
@@ -335,7 +346,7 @@ namespace CommonImageActions.Core
                     if (isOddRotation)
                     {
                         var drawRect = GetSKRectByWidthAndHeight(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
-                        canvas.DrawImage(newImage, drawRect, paint:imagePaint);
+                        canvas.DrawImage(newImage, drawRect, paint: imagePaint);
                     }
                     else
                     {
@@ -357,7 +368,7 @@ namespace CommonImageActions.Core
                     var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2f;
                     var drawRect2 = GetSKRectByWidthAndHeight(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
 
-                    canvas.DrawImage(newImage, drawRect2);
+                    canvas.DrawImage(newImage, drawRect2, paint: imagePaint);
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
