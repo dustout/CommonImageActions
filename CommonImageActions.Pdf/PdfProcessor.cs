@@ -18,6 +18,12 @@ namespace CommonImageActions.Pdf
 
         private static Mutex mut = new Mutex();
 
+        /// <summary>
+        /// The longest side, in pixels, that a pdf page will be rendered at before the image actions
+        /// are applied. Limits how much memory a single page can use.
+        /// </summary>
+        public static int MaxRenderDimension = 10000;
+
         public static PdfActionQueryBuilder Process(byte[] imageData)
         {
             return new PdfActionQueryBuilder(imageData);
@@ -34,7 +40,7 @@ namespace CommonImageActions.Pdf
                 activeJobs.Add(job);
             }
 
-            await Task.WhenAll(activeJobs);
+            await Task.WhenAll(activeJobs).ConfigureAwait(false);
 
             //by going through it this way we keep the order the same as it came in
             foreach (var completeJob in activeJobs)
@@ -47,7 +53,7 @@ namespace CommonImageActions.Pdf
 
         public async static Task<byte[]> ProcessPdfAsync(byte[] imageData, ImageActions actions)
         {
-            return await ProcessHelperAsync(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions).ConfigureAwait(false);
         }
 
         public async static Task<byte[]> ProcessPdfAsync(Stream imageStream, ImageActions actions)
@@ -61,15 +67,25 @@ namespace CommonImageActions.Pdf
             byte[] imageData = null;
             using (var ms = new MemoryStream())
             {
-                await imageStream.CopyToAsync(ms);
+                await imageStream.CopyToAsync(ms).ConfigureAwait(false);
                 imageData = ms.ToArray();
             }
 
-            return await ProcessHelperAsync(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions).ConfigureAwait(false);
         }
 
         internal static async Task<byte[]> ProcessHelperAsync(byte[] pdfData, ImageActions actions)
         {
+            if (actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions));
+            }
+
+            if (pdfData == null)
+            {
+                throw new ArgumentNullException(nameof(pdfData));
+            }
+
             byte[] returnValue = null;
 
             //make sure pdfium is initalized
@@ -126,35 +142,52 @@ namespace CommonImageActions.Pdf
 
                         try
                         {
-                            //get dimensions of the page
-                            var pdfWidth = (int)fpdfview.FPDF_GetPageWidth(pdfPage);
-                            var pdfHeight = (int)fpdfview.FPDF_GetPageHeight(pdfPage);
+                            //get dimensions of the page, these are in points (1/72 of an inch)
+                            var pageWidth = (double)fpdfview.FPDF_GetPageWidth(pdfPage);
+                            var pageHeight = (double)fpdfview.FPDF_GetPageHeight(pdfPage);
+                            if (pageWidth <= 0 || pageHeight <= 0)
+                            {
+                                throw new PdfProcessorException("Error getting pdf page size");
+                            }
+
+                            //render the page at the size that was asked for, so a large image is drawn
+                            //sharp by pdfium instead of being a small render that is stretched afterwards
+                            var renderScale = GetRenderScale(pageWidth, pageHeight, actions);
+                            var pdfWidth = Math.Max(1, (int)(pageWidth * renderScale));
+                            var pdfHeight = Math.Max(1, (int)(pageHeight * renderScale));
 
                             //create a bitmap of the page
                             var pdfBitmap = fpdfview.FPDFBitmapCreate(pdfWidth, pdfHeight, 0);
-                            fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
-                            fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
+                            if (pdfBitmap == null)
+                            {
+                                throw new PdfProcessorException("Error creating bitmap for pdf page");
+                            }
 
                             try
                             {
+                                fpdfview.FPDFBitmapFillRect(pdfBitmap, 0, 0, pdfWidth, pdfHeight, 0xFFFFFFFF);
+                                fpdfview.FPDF_RenderPageBitmap(pdfBitmap, pdfPage, 0, 0, pdfWidth, pdfHeight, 0, 0);
+
                                 //get handle to buffer
                                 var buffer = fpdfview.FPDFBitmapGetBuffer(pdfBitmap);
                                 var stride = fpdfview.FPDFBitmapGetStride(pdfBitmap);
-                                var bufferSize = stride * pdfHeight;
 
-                                // Copy data from unmanaged buffer to managed array
-                                byte[] managedArray = new byte[bufferSize];
-                                Marshal.Copy(buffer, managedArray, 0, bufferSize);
-
-                                //convert from BGRA32 format to BMP format
-                                var bmpData = ConvertFromBGRA32ToBmp(managedArray, pdfWidth, pdfHeight);
-
-                                //convert into skia format
-                                using var originalBitmap = SKBitmap.Decode(bmpData);
-                                using var newImage = SKImage.FromBitmap(originalBitmap);
+                                //let skia read the pdfium buffer where it is rather than copying it. The
+                                //buffer stays alive until FPDFBitmapDestroy below, after the encode is done
+                                var imageInfo = new SKImageInfo(pdfWidth, pdfHeight, SKColorType.Bgra8888, SKAlphaType.Opaque);
+                                using var newImage = SKImage.FromPixels(imageInfo, buffer, stride);
+                                if (newImage == null)
+                                {
+                                    throw new PdfProcessorException("Error reading rendered pdf page");
+                                }
 
                                 //process skia image into encoded image
                                 using var encoded = ImageProcessor.EncodeSkiaImage(newImage, actions);
+                                if (encoded == null)
+                                {
+                                    throw new PdfProcessorException("Error encoding pdf page");
+                                }
+
                                 returnValue = encoded.ToArray();
                             }
                             finally
@@ -177,11 +210,60 @@ namespace CommonImageActions.Pdf
                     mut.ReleaseMutex();
                     handle.Free();
                 }
-            });
+            }).ConfigureAwait(false);
 
             return returnValue;
         }
 
+        /// <summary>
+        /// How much larger than its natural size (72 dpi) the page needs to be rendered so that the
+        /// requested width and height are covered without stretching the render afterwards.
+        /// </summary>
+        public static double GetRenderScale(double pageWidth, double pageHeight, ImageActions actions)
+        {
+            double scale = 1;
+
+            var hasWidth = actions != null && actions.Width.HasValue && actions.Width.Value > 0;
+            var hasHeight = actions != null && actions.Height.HasValue && actions.Height.Value > 0;
+
+            if (hasWidth && hasHeight)
+            {
+                var widthScale = actions.Width.Value / pageWidth;
+                var heightScale = actions.Height.Value / pageHeight;
+
+                //fit and max keep the whole page inside the requested box, the other modes cover it
+                if (actions.Mode == ImageMode.Fit || actions.Mode == ImageMode.Max)
+                {
+                    scale = Math.Min(widthScale, heightScale);
+                }
+                else
+                {
+                    scale = Math.Max(widthScale, heightScale);
+                }
+            }
+            else if (hasWidth)
+            {
+                scale = actions.Width.Value / pageWidth;
+            }
+            else if (hasHeight)
+            {
+                scale = actions.Height.Value / pageHeight;
+            }
+
+            //never render below the natural size, a thumbnail looks better scaled down from it
+            scale = Math.Max(1, scale);
+
+            //keep the render to a sane size so one request can not use an unbounded amount of memory
+            var longestSide = Math.Max(pageWidth, pageHeight);
+            if (MaxRenderDimension > 0 && longestSide * scale > MaxRenderDimension)
+            {
+                scale = MaxRenderDimension / longestSide;
+            }
+
+            return scale;
+        }
+
+        //no longer used when rendering a page (skia reads the pdfium buffer directly), kept because it is public
         public static byte[] ConvertFromBGRA32ToBmp(byte[] managedArray, int width, int height)
         {
             int bytesPerPixel = 4; // BGRA32

@@ -27,7 +27,7 @@ namespace CommonImageActions.Core
                 activeJobs.Add(job);
             }
 
-            await Task.WhenAll(activeJobs);
+            await Task.WhenAll(activeJobs).ConfigureAwait(false);
 
             //by going through it this way we keep the order the same as it came in
             foreach (var completeJob in activeJobs)
@@ -40,25 +40,30 @@ namespace CommonImageActions.Core
 
         public static async Task<byte[]> ProcessImageAsync(byte[] imageData, ImageActions actions)
         {
-            return await ProcessHelperAsync(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions).ConfigureAwait(false);
         }
 
         public async static Task<byte[]> ProcessImageAsync(Stream imageStream, ImageActions actions)
         {
             if (actions == null)
             {
-                throw new ArgumentNullException("Image actions can not be null");
+                throw new ArgumentNullException(nameof(actions), "Image actions can not be null");
+            }
+
+            if (imageStream == null)
+            {
+                throw new ArgumentNullException(nameof(imageStream));
             }
 
             //copy stream into memory asyncronously
             byte[] imageData = null;
             using (var ms = new MemoryStream())
             {
-                await imageStream.CopyToAsync(ms);
+                await imageStream.CopyToAsync(ms).ConfigureAwait(false);
                 imageData = ms.ToArray();
             }
 
-            return await ProcessHelperAsync(imageData, actions);
+            return await ProcessHelperAsync(imageData, actions).ConfigureAwait(false);
         }
 
         public static ImageActionQueryBuilder Process(byte[] imageData)
@@ -68,26 +73,36 @@ namespace CommonImageActions.Core
 
         public static async Task<byte[]> ProcessVirtualImageAsync(ImageActions actions)
         {
-            return await ProcessHelperAsync(null, actions, isVirtual: true);
+            return await ProcessHelperAsync(null, actions, isVirtual: true).ConfigureAwait(false);
         }
 
         internal static async Task<byte[]> ProcessHelperAsync(byte[] imageData, ImageActions actions, bool isVirtual = false)
         {
+            if (actions == null)
+            {
+                throw new ArgumentNullException(nameof(actions), "Image actions can not be null");
+            }
+
+            //if virtual image color is set then treat whole process as virtual
+            if (string.IsNullOrEmpty(actions.ImageColor) == false)
+            {
+                isVirtual = true;
+            }
+            else if (actions.ChooseImageColorFromTextValue.HasValue && actions.ChooseImageColorFromTextValue.Value == true)
+            {
+                isVirtual = true;
+            }
+
+            if (isVirtual == false && imageData == null)
+            {
+                throw new ArgumentNullException(nameof(imageData));
+            }
+
             //placeholder for final image
             SKData encodedImage = null;
 
             await Task.Run(() =>
             {
-                //if virtual image color is set then treat whole process as virtual
-                if (string.IsNullOrEmpty(actions.ImageColor) == false)
-                {
-                    isVirtual = true;
-                }
-                else if (actions.ChooseImageColorFromTextValue.HasValue && actions.ChooseImageColorFromTextValue.Value == true)
-                {
-                    isVirtual = true;
-                }
-
                 if (isVirtual)
                 {
                     SKColor virtualImageColor;
@@ -100,7 +115,7 @@ namespace CommonImageActions.Core
                         {
                             virtualImageColor = newColorFromHex;
                         }
-                        //fall back to white if they both fail
+                        //fall back to black if it fails
                         else
                         {
                             virtualImageColor = SKColors.Black;
@@ -108,7 +123,9 @@ namespace CommonImageActions.Core
                     }
                     else if (actions.ChooseImageColorFromTextValue.HasValue
                         && actions.ChooseImageColorFromTextValue.Value == true
-                        && string.IsNullOrEmpty(actions.Text) == false)
+                        && string.IsNullOrEmpty(actions.Text) == false
+                        && BackgroundColours != null
+                        && BackgroundColours.Count > 0)
                     {
                         var hashValue = CalculateHash(actions.Text);
                         var backgroundIndex = (int)(hashValue % (UInt64)BackgroundColours.Count);
@@ -141,7 +158,19 @@ namespace CommonImageActions.Core
                 {
                     using var stream = new MemoryStream(imageData);
                     using var codec = SKCodec.Create(stream);
+
+                    //a null codec means skia does not recognise the data as an image
+                    if (codec == null)
+                    {
+                        throw new ImageProcessorException("The image could not be decoded. The data is corrupt or the format is not supported.");
+                    }
+
                     using var originalBitmap = SKBitmap.Decode(codec);
+                    if (originalBitmap == null)
+                    {
+                        throw new ImageProcessorException("The image could not be decoded. The data is corrupt or the format is not supported.");
+                    }
+
                     using var newImage = SKImage.FromBitmap(originalBitmap);
 
                     encodedImage = EncodeSkiaImage(newImage, actions, codec);
@@ -151,7 +180,7 @@ namespace CommonImageActions.Core
                 {
                     throw new ImageProcessorException("Error processing image");
                 }
-            });
+            }).ConfigureAwait(false);
 
             // SKData wraps a native buffer; copy it out and release it right away rather than
             // leaving it for the finalizer (native memory does not pressure the GC).
@@ -169,93 +198,121 @@ namespace CommonImageActions.Core
                 throw new ImageProcessorException("Error processing image");
             }
 
-            // when only width is set, calculate the height
-            if (imageActions.Width.HasValue &&
-                imageActions.Height.HasValue == false)
+            if (imageActions == null)
             {
-                var aspectRatio = (double)newImage.Height / newImage.Width;
-                imageActions.Height = (int)(imageActions.Width.Value * aspectRatio);
+                throw new ArgumentNullException(nameof(imageActions), "Image actions can not be null");
+            }
+
+            //work on a copy so the caller's actions are never changed. The same actions are often
+            //shared between images (ProcessImagesAsync, default actions) and writing the calculated
+            //size and format of one image back would apply it to every image that follows
+            var actions = new ImageActions(imageActions);
+
+            //the exif orientation says how the stored pixels need to be turned to be displayed.
+            //for a quarter turn the displayed width and height are swapped from what is stored
+            var origin = codec != null ? codec.EncodedOrigin : SKEncodedOrigin.TopLeft;
+            var isOddRotation = origin == SKEncodedOrigin.LeftTop
+                || origin == SKEncodedOrigin.RightTop
+                || origin == SKEncodedOrigin.RightBottom
+                || origin == SKEncodedOrigin.LeftBottom;
+            var sourceWidth = isOddRotation ? newImage.Height : newImage.Width;
+            var sourceHeight = isOddRotation ? newImage.Width : newImage.Height;
+
+            //a requested size has to be something that can be drawn
+            if ((actions.Width.HasValue && actions.Width.Value <= 0)
+                || (actions.Height.HasValue && actions.Height.Value <= 0))
+            {
+                throw new ImageProcessorException("Width and Height must be greater than zero");
+            }
+
+            // when only width is set, calculate the height
+            if (actions.Width.HasValue &&
+                actions.Height.HasValue == false)
+            {
+                var aspectRatio = (double)sourceHeight / sourceWidth;
+                actions.Height = Math.Max(1, (int)(actions.Width.Value * aspectRatio));
             }
 
             // when only height is set, calculate the width
-            if (imageActions.Height.HasValue &&
-                imageActions.Width.HasValue == false)
+            else if (actions.Height.HasValue &&
+                actions.Width.HasValue == false)
             {
-                var aspectRatio = (double)newImage.Width / newImage.Height;
-                imageActions.Width = (int)(imageActions.Height.Value * aspectRatio);
+                var aspectRatio = (double)sourceWidth / sourceHeight;
+                actions.Width = Math.Max(1, (int)(actions.Height.Value * aspectRatio));
             }
 
             // when neither width nor height is set, use the original image dimensions
-            if (imageActions.Width.HasValue == false &&
-                imageActions.Height.HasValue == false)
+            else if (actions.Width.HasValue == false &&
+                actions.Height.HasValue == false)
             {
-                imageActions.Width = (int)newImage.Width;
-                imageActions.Height = (int)newImage.Height;
+                actions.Width = sourceWidth;
+                actions.Height = sourceHeight;
             }
 
             //the image actions width and height should always be set from here on, have a sanity check just in case
-            if (imageActions.Width.HasValue == false || imageActions.Height.HasValue == false)
+            if (actions.Width.HasValue == false || actions.Height.HasValue == false)
             {
                 throw new ImageProcessorException("Width and Height could not be calculated");
             }
 
             // if the mode is max then constrain dimensions to requested width and height
-            if (imageActions.Mode == ImageMode.Max)
+            if (actions.Mode == ImageMode.Max)
             {
-                var aspectRatio = (double)newImage.Width / newImage.Height;
-                if (imageActions.Width.Value / aspectRatio <= imageActions.Height.Value)
+                var aspectRatio = (double)sourceWidth / sourceHeight;
+                if (actions.Width.Value / aspectRatio <= actions.Height.Value)
                 {
-                    imageActions.Height = (int)(imageActions.Width.Value / aspectRatio);
+                    actions.Height = Math.Max(1, (int)(actions.Width.Value / aspectRatio));
                 }
                 else
                 {
-                    imageActions.Width = (int)(imageActions.Height.Value * aspectRatio);
+                    actions.Width = Math.Max(1, (int)(actions.Height.Value * aspectRatio));
                 }
             }
+
+            var width = actions.Width.Value;
+            var height = actions.Height.Value;
 
             // Record the drawing commands at the new dimensions. Every SkiaSharp object below holds
             // native memory the GC cannot see, so each one is disposed deterministically; the
             // previous full-size scratch SKBitmap allocated here was never drawn to and is gone.
             using var recorder = new SKPictureRecorder();
-            var rect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+            var rect = GetSKRectByWidthAndHeight(0, 0, width, height);
             var canvas = recorder.BeginRecording(rect);
 
             //if no shape specified, but a corner radius is then set shape to rounded rectangle
-            if (imageActions.Shape.HasValue == false && imageActions.CornerRadius.HasValue)
+            if (actions.Shape.HasValue == false && actions.CornerRadius.HasValue)
             {
-                imageActions.Shape = ImageShape.RoundedRectangle;
+                actions.Shape = ImageShape.RoundedRectangle;
             }
 
             //if a shape is specified then clip the canvas to that shape
-            if (imageActions.Shape.HasValue)
+            if (actions.Shape.HasValue)
             {
-                if (imageActions.Shape == ImageShape.Circle)
+                if (actions.Shape == ImageShape.Circle)
                 {
-                    var radius = Math.Min(imageActions.Width.Value, imageActions.Height.Value) / 2;
-                    var centerX = imageActions.Width.Value / 2;
-                    var centerY = imageActions.Height.Value / 2;
+                    var radius = Math.Min(width, height) / 2;
+                    var centerX = width / 2;
+                    var centerY = height / 2;
 
                     using var a = new SKPath();
                     a.AddCircle(centerX, centerY, radius);
                     canvas.ClipPath(a, antialias: true);
                 }
-                else if (imageActions.Shape == ImageShape.Ellipse)
+                else if (actions.Shape == ImageShape.Ellipse)
                 {
                     using var a = new SKPath();
-                    var centerX = imageActions.Width.Value / 2;
-                    var centerY = imageActions.Height.Value / 2;
-                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
+                    var r = GetSKRectByWidthAndHeight(0, 0, width, height);
                     a.AddOval(r);
                     canvas.ClipPath(a, antialias: true);
                 }
-                else if (imageActions.Shape == ImageShape.RoundedRectangle)
+                else if (actions.Shape == ImageShape.RoundedRectangle)
                 {
                     using var a = new SKPath();
-                    var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
-                    if (imageActions.CornerRadius.HasValue)
+                    var r = GetSKRectByWidthAndHeight(0, 0, width, height);
+                    if (actions.CornerRadius.HasValue)
                     {
 
-                        a.AddRoundRect(r, imageActions.CornerRadius.Value, imageActions.CornerRadius.Value);
+                        a.AddRoundRect(r, actions.CornerRadius.Value, actions.CornerRadius.Value);
                     }
                     else
                     {
@@ -265,66 +322,12 @@ namespace CommonImageActions.Core
                 }
             }
 
-            bool isOddRotation = false;
-
-            //use the exif data to rotate the image
-            if (codec != null)
-            {
-                var orientation = codec.EncodedOrigin;
-                switch (orientation)
-                {
-                    default:
-                    case SKEncodedOrigin.Default:
-                        break;
-
-                    case SKEncodedOrigin.TopRight:
-                        canvas.RotateDegrees(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        break;
-
-                    case SKEncodedOrigin.BottomRight:
-                        canvas.RotateDegrees(180, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        break;
-
-                    case SKEncodedOrigin.BottomLeft:
-                        break;
-
-                    case SKEncodedOrigin.LeftTop:
-                        canvas.RotateDegrees(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        isOddRotation = true;
-                        break;
-
-                    case SKEncodedOrigin.RightTop:
-                        canvas.RotateDegrees(90, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        isOddRotation = true;
-                        break;
-
-                    case SKEncodedOrigin.RightBottom:
-                        canvas.RotateDegrees(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        isOddRotation = true;
-                        break;
-
-                    case SKEncodedOrigin.LeftBottom:
-                        canvas.RotateDegrees(270, imageActions.Width.Value / 2, imageActions.Height.Value / 2);
-                        isOddRotation = true;
-                        break;
-                }
-            }
-
-            //calculate the offset
-            var rotationOffsetX = 0f;
-            var rotationOffsetY = 0f;
-            if (isOddRotation)
-            {
-                rotationOffsetY = (imageActions.Height.Value - imageActions.Width.Value) / 2;
-                rotationOffsetX = rotationOffsetY * -1;
-            }
-
             using var imagePaint = new SKPaint
             {
                 FilterQuality = SKFilterQuality.High,
             };
 
-            using var grayscaleFilter = (imageActions.IsGrayscale.HasValue && imageActions.IsGrayscale == true)
+            using var grayscaleFilter = (actions.IsGrayscale.HasValue && actions.IsGrayscale == true)
                 ? SKColorFilter.CreateColorMatrix(new float[]
                 {
                     0.3f, 0.59f, 0.11f, 0, 0,
@@ -338,71 +341,45 @@ namespace CommonImageActions.Core
             {
                 imagePaint.ColorFilter = grayscaleFilter;
             }
-            
-            //write to the canvas
-            switch (imageActions.Mode)
+
+            //work out where on the canvas the image goes, as it will be displayed (after exif orientation)
+            SKRect destinationRect;
+            switch (actions.Mode)
             {
                 //depend on canvas size
                 default:
                 case null:
                 case ImageMode.Stretch:
                 case ImageMode.Max:
-                    if (isOddRotation)
-                    {
-                        var drawRect = GetSKRectByWidthAndHeight(rotationOffsetX, rotationOffsetY, imageActions.Height.Value, imageActions.Width.Value);
-                        canvas.DrawImage(newImage, drawRect, paint: imagePaint);
-                    }
-                    else
-                    {
-                        var drawRect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
-                        canvas.DrawImage(newImage, drawRect, paint: imagePaint);
-                    }
+                    destinationRect = GetSKRectByWidthAndHeight(0, 0, width, height);
                     break;
 
                 //fit within canvas
                 case ImageMode.Fit:
-                    var fitScale = Math.Min((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
-                    if (isOddRotation)
-                    {
-                        fitScale = Math.Min((double)imageActions.Height.Value / newImage.Width, (double)imageActions.Width.Value / newImage.Height);
-                    }
-                    var fitScaledWidth = (int)(newImage.Width * fitScale);
-                    var fitScaledHeight = (int)(newImage.Height * fitScale);
-                    var fitOffsetX = (imageActions.Width.Value - fitScaledWidth) / 2f;
-                    var fitOffsetY = (imageActions.Height.Value - fitScaledHeight) / 2f;
-                    var drawRect2 = GetSKRectByWidthAndHeight(fitOffsetX, fitOffsetY, fitScaledWidth, fitScaledHeight);
-
-                    canvas.DrawImage(newImage, drawRect2, paint: imagePaint);
+                    destinationRect = GetScaledRect(sourceWidth, sourceHeight, width, height, fillCanvas: false);
                     break;
 
                 //zoom in and fill canvas while maintaing aspect ratio
                 case ImageMode.Zoom:
-                    var scale = Math.Max((double)imageActions.Width.Value / newImage.Width, (double)imageActions.Height.Value / newImage.Height);
-                    if (isOddRotation)
-                    {
-                        scale = Math.Max((double)imageActions.Height.Value / newImage.Width, (double)imageActions.Width.Value / newImage.Height);
-                    }
-                    var scaledWidth = (int)(newImage.Width * scale);
-                    var scaledHeight = (int)(newImage.Height * scale);
-                    var offsetX = (imageActions.Width.Value - scaledWidth) / 2;
-                    var offsetY = (imageActions.Height.Value - scaledHeight) / 2;
-                    var drawRect3 = GetSKRectByWidthAndHeight(offsetX, offsetY, scaledWidth, scaledHeight);
-                    canvas.DrawImage(newImage, drawRect3, paint: imagePaint);
+                    destinationRect = GetScaledRect(sourceWidth, sourceHeight, width, height, fillCanvas: true);
                     break;
             }
 
-            //if there is text to draw then do it
-            if (!string.IsNullOrEmpty(imageActions.Text))
-            {
-                var textToPrint = imageActions.Text;
+            //write to the canvas, using the exif data to turn the image the right way up
+            DrawImageWithOrientation(canvas, newImage, destinationRect, origin, imagePaint);
 
-                if (imageActions.AsInitials.HasValue && imageActions.AsInitials.Value == true)
+            //if there is text to draw then do it
+            if (!string.IsNullOrEmpty(actions.Text))
+            {
+                var textToPrint = actions.Text;
+
+                if (actions.AsInitials.HasValue && actions.AsInitials.Value == true)
                 {
-                    textToPrint = GetInitials(imageActions.Text);
+                    textToPrint = GetInitials(actions.Text);
                 }
 
                 using var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Black, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-                var myFontSize = (int)(imageActions.Height.Value * 0.85);
+                var myFontSize = (int)(height * 0.85);
 
                 // Set up paint for text
                 using var paint = new SKPaint
@@ -418,7 +395,7 @@ namespace CommonImageActions.Core
                 var textSize = paint.MeasureText(textToPrint);
 
                 //specify the max width that is wanted
-                var maxWidth = imageActions.Width.Value * 0.75;
+                var maxWidth = width * 0.75;
 
                 // it needs to fit in the image, so if it is too narrow then we need to shrink down the font
                 if (textSize > maxWidth)
@@ -430,14 +407,14 @@ namespace CommonImageActions.Core
                 paint.TextSize = myFontSize;
 
                 //set the text color
-                if (!string.IsNullOrEmpty(imageActions.TextColor))
+                if (!string.IsNullOrEmpty(actions.TextColor))
                 {
                     //try hex
-                    if (SKColor.TryParse($"#{imageActions.TextColor}", out var newColorFromHex))
+                    if (SKColor.TryParse($"#{actions.TextColor}", out var newColorFromHex))
                     {
                         paint.Color = newColorFromHex;
                     }
-                    //fall back to white if they both fail
+                    //fall back to white if it fails
                     else
                     {
                         paint.Color = SKColors.White;
@@ -449,44 +426,54 @@ namespace CommonImageActions.Core
                 }
 
                 // Calculate text position
-                var x = imageActions.Width.Value / 2f;
-                var y = (imageActions.Height.Value / 2f) - ((paint.FontMetrics.Ascent + paint.FontMetrics.Descent) / 2);
+                var x = width / 2f;
+                var y = (height / 2f) - ((paint.FontMetrics.Ascent + paint.FontMetrics.Descent) / 2);
 
                 canvas.DrawText(textToPrint, x, y, paint);
             }
 
             //set export format
             var exportImageType = SKEncodedImageFormat.Png;
-            if (imageActions.Format.HasValue) //user specified overrides default
+            if (actions.Format.HasValue) //user specified overrides default
             {
-                exportImageType = imageActions.Format.Value;
+                exportImageType = actions.Format.Value;
             }
             else if (codec != null) //otherwise export as what it started as
             {
                 exportImageType = codec.EncodedFormat;
             }
 
-            //set requested format so export know what to do
-            imageActions.Format = exportImageType;
-
             //set encoding quality
-            SKData encodedImage = null;
-            using var picture = recorder.EndRecording();
-            var ouputSize = new SKSizeI(imageActions.Width.Value, imageActions.Height.Value);
-            using var outputImage = SKImage.FromPicture(picture, ouputSize);
-            switch (exportImageType)
+            var quality = 100;
+            if (exportImageType == SKEncodedImageFormat.Jpeg)
             {
-                default:
-                    encodedImage = outputImage.Encode(exportImageType, 100);
-                    break;
+                quality = JpegQuality;
+            }
+            else if (exportImageType == SKEncodedImageFormat.Gif)
+            {
+                quality = GifQuality;
+            }
 
-                case SKEncodedImageFormat.Jpeg:
-                    encodedImage = outputImage.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
-                    break;
+            using var picture = recorder.EndRecording();
+            var ouputSize = new SKSizeI(width, height);
+            using var outputImage = SKImage.FromPicture(picture, ouputSize);
+            if (outputImage == null)
+            {
+                throw new ImageProcessorException("Error processing image");
+            }
 
-                case SKEncodedImageFormat.Gif:
-                    encodedImage = outputImage.Encode(SKEncodedImageFormat.Gif, GifQuality);
-                    break;
+            var encodedImage = outputImage.Encode(exportImageType, quality);
+
+            //skia can read more formats than it can write (it writes jpeg, png and webp), and returns
+            //nothing for the rest. Fall back to png so a gif or bmp can still be resized
+            if (encodedImage == null && exportImageType != SKEncodedImageFormat.Png)
+            {
+                encodedImage = outputImage.Encode(SKEncodedImageFormat.Png, 100);
+            }
+
+            if (encodedImage == null)
+            {
+                throw new ImageProcessorException("Error encoding image");
             }
 
             return encodedImage;
@@ -495,6 +482,108 @@ namespace CommonImageActions.Core
         public static SKRect GetSKRectByWidthAndHeight(float left, float top, float width, float height)
         {
             return new SKRect(left, top, width + left, top + height);
+        }
+
+        /// <summary>
+        /// Scale the source to the canvas while keeping its aspect ratio, centered on the canvas.
+        /// When filling, the image covers the whole canvas and overflows on one axis (zoom).
+        /// Otherwise the whole image is visible and one axis has empty space (fit).
+        /// </summary>
+        private static SKRect GetScaledRect(int sourceWidth, int sourceHeight, int width, int height, bool fillCanvas)
+        {
+            var widthScale = (double)width / sourceWidth;
+            var heightScale = (double)height / sourceHeight;
+            var useWidthScale = fillCanvas ? widthScale >= heightScale : widthScale <= heightScale;
+
+            //the side that sets the scale is exactly the canvas size, calculating it from the scale
+            //instead can land a fraction short and leave a transparent line down the edge
+            float scaledWidth;
+            float scaledHeight;
+            if (useWidthScale)
+            {
+                scaledWidth = width;
+                scaledHeight = Math.Max(1, (float)Math.Round(sourceHeight * widthScale));
+            }
+            else
+            {
+                scaledHeight = height;
+                scaledWidth = Math.Max(1, (float)Math.Round(sourceWidth * heightScale));
+            }
+
+            var offsetX = (width - scaledWidth) / 2f;
+            var offsetY = (height - scaledHeight) / 2f;
+            return GetSKRectByWidthAndHeight(offsetX, offsetY, scaledWidth, scaledHeight);
+        }
+
+        /// <summary>
+        /// Draw the stored image into the destination rectangle, turned and mirrored according to its
+        /// exif orientation. The canvas is restored afterwards so nothing drawn later is affected.
+        /// </summary>
+        private static void DrawImageWithOrientation(SKCanvas canvas, SKImage image, SKRect destinationRect, SKEncodedOrigin origin, SKPaint paint)
+        {
+            var w = destinationRect.Width;
+            var h = destinationRect.Height;
+
+            //maps the stored pixels onto the displayed image, w and h being the displayed size
+            SKMatrix matrix;
+            var isOddRotation = false;
+            switch (origin)
+            {
+                default:
+                case SKEncodedOrigin.TopLeft:
+                    matrix = new SKMatrix(1, 0, 0, 0, 1, 0, 0, 0, 1);
+                    break;
+
+                //mirrored left to right
+                case SKEncodedOrigin.TopRight:
+                    matrix = new SKMatrix(-1, 0, w, 0, 1, 0, 0, 0, 1);
+                    break;
+
+                //rotated 180
+                case SKEncodedOrigin.BottomRight:
+                    matrix = new SKMatrix(-1, 0, w, 0, -1, h, 0, 0, 1);
+                    break;
+
+                //mirrored top to bottom
+                case SKEncodedOrigin.BottomLeft:
+                    matrix = new SKMatrix(1, 0, 0, 0, -1, h, 0, 0, 1);
+                    break;
+
+                //mirrored across the top left to bottom right diagonal
+                case SKEncodedOrigin.LeftTop:
+                    matrix = new SKMatrix(0, 1, 0, 1, 0, 0, 0, 0, 1);
+                    isOddRotation = true;
+                    break;
+
+                //rotated 90
+                case SKEncodedOrigin.RightTop:
+                    matrix = new SKMatrix(0, -1, w, 1, 0, 0, 0, 0, 1);
+                    isOddRotation = true;
+                    break;
+
+                //mirrored across the top right to bottom left diagonal
+                case SKEncodedOrigin.RightBottom:
+                    matrix = new SKMatrix(0, -1, w, -1, 0, h, 0, 0, 1);
+                    isOddRotation = true;
+                    break;
+
+                //rotated 270
+                case SKEncodedOrigin.LeftBottom:
+                    matrix = new SKMatrix(0, 1, 0, -1, 0, h, 0, 0, 1);
+                    isOddRotation = true;
+                    break;
+            }
+
+            //the stored image is drawn on its side for a quarter turn, so its width and height swap
+            var storedRect = isOddRotation
+                ? GetSKRectByWidthAndHeight(0, 0, h, w)
+                : GetSKRectByWidthAndHeight(0, 0, w, h);
+
+            canvas.Save();
+            canvas.Translate(destinationRect.Left, destinationRect.Top);
+            canvas.Concat(ref matrix);
+            canvas.DrawImage(image, storedRect, paint: paint);
+            canvas.Restore();
         }
 
         public static UInt64 CalculateHash(string read)
@@ -510,24 +599,45 @@ namespace CommonImageActions.Core
 
         public static string GetInitials(string input)
         {
-            // Use a regular expression to split the input into words
-            var words = Regex.Split(input, @"(?<!^)(?=[A-Z])|[_\s]+");
+            if (string.IsNullOrEmpty(input))
+            {
+                return string.Empty;
+            }
+
+            //when the words are already separated use them as they are, so DUSTIN GAMESTER is DG
+            var words = SplitIntoWords(input, @"[_\s]+");
+
+            //otherwise fall back to splitting a single word on its capital letters, so DustinGamester is DG
+            if (words.Count < 2)
+            {
+                words = SplitIntoWords(input, @"(?<!^)(?=[A-Z])|[_\s]+");
+            }
 
             // Extract the first letter of each word
             var initials = string.Empty;
             foreach (var word in words)
             {
-                if (!string.IsNullOrEmpty(word))
+                initials += word[0];
+                if (initials.Length == 2)
                 {
-                    initials += word[0];
-                    if (initials.Length == 2)
-                    {
-                        break;
-                    }
+                    break;
                 }
             }
 
             return initials.ToUpper();
+        }
+
+        private static List<string> SplitIntoWords(string input, string pattern)
+        {
+            var words = new List<string>();
+            foreach (var word in Regex.Split(input, pattern))
+            {
+                if (!string.IsNullOrEmpty(word))
+                {
+                    words.Add(word);
+                }
+            }
+            return words;
         }
     }
 }

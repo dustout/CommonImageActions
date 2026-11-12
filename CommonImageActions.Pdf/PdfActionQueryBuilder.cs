@@ -123,12 +123,14 @@ namespace CommonImageActions.Pdf
 
         public byte[] ToImage()
         {
-            return ToImageAsync().Result;
+            //GetResult rethrows the original exception instead of wrapping it in an AggregateException
+            return ToImageAsync().GetAwaiter().GetResult();
         }
 
         public async Task<byte[]> ToImageAsync()
         {
-            return await PdfProcessor.ProcessHelperAsync(_imageData, _actions);
+            //ConfigureAwait(false) all the way down so blocking in ToImage can not deadlock a UI thread
+            return await PdfProcessor.ProcessHelperAsync(_imageData, _actions).ConfigureAwait(false);
         }
 
     }

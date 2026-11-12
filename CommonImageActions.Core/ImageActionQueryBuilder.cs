@@ -135,11 +135,14 @@ namespace CommonImageActions.Core
 
         public byte[] ToImage()
         {
-            return ToImageAsync().Result;
+            //GetResult rethrows the original exception instead of wrapping it in an AggregateException
+            return ToImageAsync().GetAwaiter().GetResult();
         }
 
-        public async Task<byte[]> ToImageAsync() { 
-            return await ImageProcessor.ProcessHelperAsync(_imageData, _actions, isVirtual: _isVirtual);
+        public async Task<byte[]> ToImageAsync()
+        {
+            //ConfigureAwait(false) all the way down so blocking in ToImage can not deadlock a UI thread
+            return await ImageProcessor.ProcessHelperAsync(_imageData, _actions, isVirtual: _isVirtual).ConfigureAwait(false);
         }
     }
 }

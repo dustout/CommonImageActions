@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
@@ -16,6 +17,12 @@ namespace CommonImageActions.AspNetCore
 {
     public class CommonImageActionsMiddleware
     {
+        //how many bytes from the start of a file are needed to tell what kind of image it is
+        private const int ContentTypeHeaderLength = 12;
+
+        //one client for the life of the application. Creating a client per request leaves its
+        //sockets behind after every call, and under load the server runs out of them
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         private readonly RequestDelegate _next;
         private readonly CommonImageActionSettings _options;
@@ -37,129 +44,96 @@ namespace CommonImageActions.AspNetCore
                 return;
             }
 
-            if (context.Request.Path.StartsWithSegments(_options.PathToWatch))
+            //only requests that read an image are handled, the rest are left for the pipeline
+            var isGetOrHead = string.Equals(context.Request.Method, "GET", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(context.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
+            if (isGetOrHead == false)
             {
+                await _next(context);
+                return;
+            }
+
+            if (context.Request.Path.StartsWithSegments(_options.PathToWatch, out var pathAfterWatchedPath))
+            {
+                //the path as the browser meant it, with any %20 style escaping already decoded
+                var requestPath = context.Request.Path.Value;
+
                 //check if request is for a supported image
-                var imageExtension = GetImageExtension(context.Request.Path);
+                var imageExtension = GetImageExtension(requestPath);
                 if (imageExtension == null)
                 {
                     await _next(context);
                     return;
                 }
 
-                //conver url into a Uri
-                var requestAndQuery = $"{context.Request.Path}{context.Request.QueryString}";
-                var url = $"{context.Request.Scheme}://{context.Request.Host}{requestAndQuery}";
-                var uri = new Uri(url);
-
                 //get file information
-                var segments = uri.Segments.Skip(1).Select(x => x.TrimEnd('/')).ToArray();
-                var imageFileRelativePath = Path.Combine(segments);
                 var webRootPath = Path.Combine(_env.ContentRootPath, "wwwroot");
-                var imageFilePath = Path.Combine(webRootPath, imageFileRelativePath);
                 var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
                 var isRemoteServer = !string.IsNullOrEmpty(_options.RemoteFileServerUrl);
                 var isVirtual = _options.IsVirtual;
 
                 //convert query string into image actions
-                var imageActions = ConvertQueryStringToImageActions(uri.Query, _options.DefaultImageActions);
+                var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
+                var imageActions = ConvertQueryStringToImageActions(queryString, _options.DefaultImageActions);
                 byte[] imageData = null;
 
-                //if the file name is to be used as text then set it
-                if (_options.UseFileNameAsText)
+                //if the file name is to be used as text then set it, unless the request asked for its own text
+                if (_options.UseFileNameAsText && string.IsNullOrEmpty(GetTextFromQueryString(queryString)))
                 {
-                    var fileName = Path.GetFileNameWithoutExtension(imageFileRelativePath);
+                    var lastSegment = requestPath.Substring(requestPath.LastIndexOf('/') + 1);
+                    var fileName = Path.GetFileNameWithoutExtension(lastSegment);
                     if (string.IsNullOrEmpty(fileName) == false)
                     {
                         imageActions.Text = fileName;
                     }
                 }
 
+                //check to see if file is in the cache, if it is then return it
+                string cachedFilePath = null;
                 if (_options.UseDiskCache)
                 {
-                    //make sure default disk cache location is set
-                    if (string.IsNullOrEmpty(CommonImageActionSettings.DefaultDiskCacheLocation))
+                    cachedFilePath = Path.Combine(GetDiskCacheLocation(webRootPath), GetCacheFileName(requestPath, imageActions));
+                    if (await TrySendCachedFileAsync(context, cachedFilePath))
                     {
-                        CommonImageActionSettings.DefaultDiskCacheLocation = Path.Combine(webRootPath, "cache");
-                    }
-
-                    //chose the best most specific cache location
-                    var diskCacheLocation = _options.DiskCacheLocation;
-                    if (string.IsNullOrEmpty(diskCacheLocation))
-                    {
-                        diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
-                    }
-
-                    //check to see if file is in the cache, if it does then return it
-                    var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
-                    var cachedFilePath = Path.Combine(diskCacheLocation, cachedFileName);
-                    try
-                    {
-                        if (File.Exists(cachedFilePath))
-                        {
-                            //if the file exists then return it
-                            if (imageActions.Format.HasValue)
-                            {
-                                context.Response.ContentType = $"image/{imageActions.Format.Value.ToString().ToLower()}";
-                            }
-                            else
-                            {
-                                context.Response.ContentType = $"image/{imageExtension.Replace(".", string.Empty)}";
-                            }
-
-                            using (var cachedFileStream = File.OpenRead(cachedFilePath))
-                            {
-                                await cachedFileStream.CopyToAsync(context.Response.Body);
-                            }
-                            return;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error getting cached file {cachedFilePath}. {ex.ToString()}");
+                        return;
                     }
                 }
 
                 if (isRemoteServer)
                 {
-                    //get the server path by removing the path to watch
-                    var serverPath = context.Request.Path.Value.Replace(_options.PathToWatch, string.Empty).TrimStart('/');
+                    //get the server path by removing the path to watch, keeping it escaped for the url
+                    var serverPath = pathAfterWatchedPath.ToUriComponent().TrimStart('/');
 
-                    //clean the remote url so if there is a slash then we remove it 
+                    //clean the remote url so if there is a slash then we remove it
                     var cleanedRemoteUrl = _options.RemoteFileServerUrl.TrimEnd('/');
 
                     //combine them as a request to the server
                     var imageRemoteUrlPath = new Uri($"{cleanedRemoteUrl}/{serverPath}");
 
                     //get the image from the remote server
-                    var httpClient = new HttpClient();
-                    var response = await httpClient.GetAsync(imageRemoteUrlPath);
-                    var responseData = await response.Content.ReadAsByteArrayAsync();
+                    using (var response = await _httpClient.GetAsync(imageRemoteUrlPath))
+                    {
+                        var responseData = await response.Content.ReadAsByteArrayAsync();
 
-                    //if failure then forward the failure
-                    if (response.IsSuccessStatusCode == false)
-                    {
-                        context.Response.StatusCode = (int)response.StatusCode;
-                        await context.Response.Body.WriteAsync(responseData);
-                        return;
-                    }
+                        //if failure then forward the failure, if no actions then just send the raw file
+                        if (response.IsSuccessStatusCode == false || imageActions.HasAnyActions() == false)
+                        {
+                            context.Response.StatusCode = (int)response.StatusCode;
+                            context.Response.ContentType = response.Content.Headers.ContentType?.ToString()
+                                ?? GetContentType(responseData, responseData.Length);
+                            await context.Response.Body.WriteAsync(responseData, 0, responseData.Length);
+                            return;
+                        }
 
-                    //if no actions then just send the raw file
-                    if (imageActions.HasAnyActions() == false)
-                    {
-                        context.Response.StatusCode = (int)response.StatusCode;
-                        await context.Response.Body.WriteAsync(responseData);
-                        return;
-                    }
-
-                    //get the image data and process it
-                    if (isPdf)
-                    {
-                        imageData = await PdfProcessor.ProcessPdfAsync(responseData, imageActions);
-                    }
-                    else
-                    {
-                        imageData = await ImageProcessor.ProcessImageAsync(responseData, imageActions);
+                        //get the image data and process it
+                        if (isPdf)
+                        {
+                            imageData = await PdfProcessor.ProcessPdfAsync(responseData, imageActions);
+                        }
+                        else
+                        {
+                            imageData = await ImageProcessor.ProcessImageAsync(responseData, imageActions);
+                        }
                     }
                 }
                 else if (isVirtual)
@@ -168,14 +142,11 @@ namespace CommonImageActions.AspNetCore
                 }
                 else
                 {
-                    //check to see if the request has been modified (for example if someone has requested root)
-                    if (imageFilePath.StartsWith(webRootPath) == false)
-                    {
-                        throw new UnauthorizedAccessException();
-                    }
-
-                    //if file does not exist then let normal flow deal with it
-                    if (!File.Exists(imageFilePath))
+                    //find the file, this is null if the request has been modified to point outside
+                    //of wwwroot (for example if someone has requested root). Let the normal flow
+                    //deal with that, and with a file that does not exist
+                    var imageFilePath = GetLocalFilePath(webRootPath, requestPath);
+                    if (imageFilePath == null || !File.Exists(imageFilePath))
                     {
                         await _next(context);
                         return;
@@ -206,32 +177,18 @@ namespace CommonImageActions.AspNetCore
                     throw new NotImplementedException($"{imageExtension} not supported");
                 }
 
-                //set response type
-                if (imageActions.Format.HasValue)
-                {
-                    context.Response.ContentType = $"image/{imageActions.Format.Value.ToString().ToLower()}";
-                }
-                else
-                {
-                    context.Response.ContentType = "image/png";
-                }
+                //set response type from what was actually produced
+                context.Response.ContentType = GetContentType(imageData, imageData.Length);
 
                 //send the resulting data
                 await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
 
                 //write to disk cache if enabled
-                if (_options.UseDiskCache)
+                if (cachedFilePath != null)
                 {
-                    var diskCacheLocation = _options.DiskCacheLocation;
-                    if (string.IsNullOrEmpty(diskCacheLocation))
-                    {
-                        diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
-                    }
-
-                    var cachedFileName = ByteArrayToHexString(Encoding.UTF8.GetBytes(requestAndQuery));
-                    var cachedFilePath = Path.Combine(diskCacheLocation, cachedFileName);
                     try
                     {
+                        var diskCacheLocation = Path.GetDirectoryName(cachedFilePath);
                         if (Directory.Exists(diskCacheLocation) == false)
                         {
                             Directory.CreateDirectory(diskCacheLocation);
@@ -251,6 +208,200 @@ namespace CommonImageActions.AspNetCore
             await _next(context);
         }
 
+        private string GetDiskCacheLocation(string webRootPath)
+        {
+            //make sure default disk cache location is set
+            if (string.IsNullOrEmpty(CommonImageActionSettings.DefaultDiskCacheLocation))
+            {
+                CommonImageActionSettings.DefaultDiskCacheLocation = Path.Combine(webRootPath, "cache");
+            }
+
+            //chose the best most specific cache location
+            var diskCacheLocation = _options.DiskCacheLocation;
+            if (string.IsNullOrEmpty(diskCacheLocation))
+            {
+                diskCacheLocation = CommonImageActionSettings.DefaultDiskCacheLocation;
+            }
+
+            return diskCacheLocation;
+        }
+
+        private static async Task<bool> TrySendCachedFileAsync(HttpContext context, string cachedFilePath)
+        {
+            try
+            {
+                if (File.Exists(cachedFilePath) == false)
+                {
+                    return false;
+                }
+
+                using (var cachedFileStream = File.OpenRead(cachedFilePath))
+                {
+                    //the cached file has no extension, so read its first bytes to see what it is
+                    var header = new byte[ContentTypeHeaderLength];
+                    var headerLength = 0;
+                    while (headerLength < header.Length)
+                    {
+                        var read = await cachedFileStream.ReadAsync(header, headerLength, header.Length - headerLength);
+                        if (read == 0)
+                        {
+                            break;
+                        }
+                        headerLength += read;
+                    }
+
+                    context.Response.ContentType = GetContentType(header, headerLength);
+                    await context.Response.Body.WriteAsync(header, 0, headerLength);
+                    await cachedFileStream.CopyToAsync(context.Response.Body);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting cached file {cachedFilePath}. {ex.ToString()}");
+
+                //once part of the file has been sent the response can not be started again
+                return context.Response.HasStarted;
+            }
+        }
+
+        /// <summary>
+        /// The name of the cache file for a request. It is built from the path and the image actions
+        /// that will be applied rather than the raw url, so the same image is cached once however the
+        /// url is written, and query parameters that mean nothing do not create new cache files.
+        /// It is hashed so the name is always short enough to be a valid file name.
+        /// </summary>
+        public static string GetCacheFileName(string requestPath, ImageActions imageActions)
+        {
+            var key = string.Join("|", new[]
+            {
+                requestPath,
+                $"w={imageActions.Width}",
+                $"h={imageActions.Height}",
+                $"p={imageActions.Page}",
+                $"s={imageActions.Shape}",
+                $"cr={imageActions.CornerRadius}",
+                $"in={imageActions.AsInitials}",
+                $"ft={imageActions.ChooseImageColorFromTextValue}",
+                $"g={imageActions.IsGrayscale}",
+                $"f={imageActions.Format}",
+                $"m={imageActions.Mode}",
+                $"t={Uri.EscapeDataString(imageActions.Text ?? string.Empty)}",
+                $"tc={Uri.EscapeDataString(imageActions.TextColor ?? string.Empty)}",
+                $"c={Uri.EscapeDataString(imageActions.ImageColor ?? string.Empty)}",
+                $"pw={Uri.EscapeDataString(imageActions.PdfPassword ?? string.Empty)}",
+            });
+
+            using (var sha256 = SHA256.Create())
+            {
+                return ByteArrayToHexString(sha256.ComputeHash(Encoding.UTF8.GetBytes(key)));
+            }
+        }
+
+        /// <summary>
+        /// Convert the path of a request into the file it refers to inside the web root. Returns null
+        /// when the path does not resolve to somewhere inside the web root.
+        /// </summary>
+        public static string GetLocalFilePath(string webRootPath, string requestPath)
+        {
+            try
+            {
+                var rootPath = Path.GetFullPath(webRootPath);
+                var relativePath = requestPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+
+                //GetFullPath resolves any .. in the path, so what is checked is where the file really is
+                var filePath = Path.GetFullPath(Path.Combine(rootPath, relativePath));
+
+                var separator = Path.DirectorySeparatorChar.ToString();
+                var rootPathWithSeparator = rootPath.EndsWith(separator) ? rootPath : rootPath + separator;
+                if (filePath.StartsWith(rootPathWithSeparator, StringComparison.Ordinal) == false)
+                {
+                    return null;
+                }
+
+                return filePath;
+            }
+            catch (Exception)
+            {
+                //the path has characters that can not be in a file name, so there is no file
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Work out the content type from the first bytes of the data.
+        /// </summary>
+        public static string GetContentType(byte[] data, int length)
+        {
+            if (data == null)
+            {
+                return "application/octet-stream";
+            }
+
+            length = Math.Min(length, data.Length);
+
+            if (StartsWith(data, length, 0xFF, 0xD8, 0xFF))
+            {
+                return "image/jpeg";
+            }
+
+            if (StartsWith(data, length, 0x89, 0x50, 0x4E, 0x47))
+            {
+                return "image/png";
+            }
+
+            //RIFF....WEBP
+            if (StartsWith(data, length, 0x52, 0x49, 0x46, 0x46)
+                && length >= 12 && data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50)
+            {
+                return "image/webp";
+            }
+
+            //GIF8
+            if (StartsWith(data, length, 0x47, 0x49, 0x46, 0x38))
+            {
+                return "image/gif";
+            }
+
+            //BM
+            if (StartsWith(data, length, 0x42, 0x4D))
+            {
+                return "image/bmp";
+            }
+
+            //%PDF
+            if (StartsWith(data, length, 0x25, 0x50, 0x44, 0x46))
+            {
+                return "application/pdf";
+            }
+
+            if (StartsWith(data, length, 0x00, 0x00, 0x01, 0x00))
+            {
+                return "image/x-icon";
+            }
+
+            return "application/octet-stream";
+        }
+
+        private static bool StartsWith(byte[] data, int length, params byte[] signature)
+        {
+            if (length < signature.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < signature.Length; i++)
+            {
+                if (data[i] != signature[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private static string ByteArrayToHexString(byte[] Bytes)
         {
             StringBuilder Result = new StringBuilder(Bytes.Length * 2);
@@ -265,13 +416,19 @@ namespace CommonImageActions.AspNetCore
             return Result.ToString();
         }
 
+        private static string GetTextFromQueryString(string queryString)
+        {
+            var query = HttpUtility.ParseQueryString(queryString ?? string.Empty);
+            return query["text"] ?? query["t"];
+        }
+
         public static ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)
         {
             //initialize image actions
             var imageActions = new ImageActions(defaultImageActions);
 
             //if there are no paramters then let the normal flow deal with it
-            var query = HttpUtility.ParseQueryString(queryString);
+            var query = HttpUtility.ParseQueryString(queryString ?? string.Empty);
             if (query.Count == 0)
             {
                 return imageActions;
@@ -282,7 +439,7 @@ namespace CommonImageActions.AspNetCore
             if (int.TryParse(widthString, out int width))
             {
                 //sanity check to make sure no bad actor requests a number that may eat all the ram in the system
-                if(width < CommonImageActionSettings.MaxUrlWidth)
+                if (width > 0 && width < CommonImageActionSettings.MaxUrlWidth)
                 {
                     imageActions.Width = width;
                 }
@@ -292,7 +449,7 @@ namespace CommonImageActions.AspNetCore
             if (int.TryParse(heightString, out int height))
             {
                 //sanity check to make sure no bad actor requests a number that may eat all the ram in the system
-                if (height < CommonImageActionSettings.MaxUrlHeight)
+                if (height > 0 && height < CommonImageActionSettings.MaxUrlHeight)
                 {
                     imageActions.Height = height;
                 }
@@ -310,11 +467,19 @@ namespace CommonImageActions.AspNetCore
                 imageActions.CornerRadius = cornerRadius;
             }
 
+            //the text values are only set when they are in the url, otherwise a url that
+            //does not mention them would wipe out the values from the default image actions
             var pdfPasswordString = query["password"] ?? query["pw"];
-            imageActions.PdfPassword = pdfPasswordString;
+            if (pdfPasswordString != null)
+            {
+                imageActions.PdfPassword = pdfPasswordString;
+            }
 
             var textString = query["text"] ?? query["t"];
-            imageActions.Text = textString;
+            if (textString != null)
+            {
+                imageActions.Text = textString;
+            }
 
             var asInitialsString = query["initials"] ?? query["in"];
             if (Boolean.TryParse(asInitialsString, out var asInitials))
@@ -329,10 +494,16 @@ namespace CommonImageActions.AspNetCore
             }
 
             var textColorString = query["textColor"] ?? query["tc"];
-            imageActions.TextColor = textColorString;
+            if (textColorString != null)
+            {
+                imageActions.TextColor = textColorString;
+            }
 
             var virtualImageColorString = query["color"] ?? query["c"];
-            imageActions.ImageColor = virtualImageColorString;
+            if (virtualImageColorString != null)
+            {
+                imageActions.ImageColor = virtualImageColorString;
+            }
 
             var formatString = query["format"] ?? query["f"];
             if (Enum.TryParse<SKEncodedImageFormat>(formatString, true, out var format))
