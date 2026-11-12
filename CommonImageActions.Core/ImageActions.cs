@@ -26,6 +26,7 @@ namespace CommonImageActions.Core
                 TextColor = defaults.TextColor;
                 ImageColor = defaults.ImageColor;
                 ChooseImageColorFromTextValue = defaults.ChooseImageColorFromTextValue;
+                IsGrayscale = defaults.IsGrayscale;
             }
         }
 
@@ -67,6 +68,7 @@ namespace CommonImageActions.Core
                 || Mode.HasValue 
                 || ChooseImageColorFromTextValue.HasValue
                 || CornerRadius.HasValue
+                || IsGrayscale.HasValue
                 || string.IsNullOrEmpty(ImageColor) == false
                 || string.IsNullOrEmpty(Text) == false;
         }
