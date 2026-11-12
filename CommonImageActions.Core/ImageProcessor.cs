@@ -131,7 +131,7 @@ namespace CommonImageActions.Core
                         virtualImageColor = SKColors.Black;
                     }
 
-                    var newBitmap = new SKBitmap(100, 100);
+                    using var newBitmap = new SKBitmap(100, 100);
                     using var canvas = new SKCanvas(newBitmap);
                     canvas.Clear(virtualImageColor);
                     using var newImage = SKImage.FromBitmap(newBitmap);
@@ -153,7 +153,12 @@ namespace CommonImageActions.Core
                 }
             });
 
-            return encodedImage.ToArray();
+            // SKData wraps a native buffer; copy it out and release it right away rather than
+            // leaving it for the finalizer (native memory does not pressure the GC).
+            using (encodedImage)
+            {
+                return encodedImage.ToArray();
+            }
         }
 
         public static SKData EncodeSkiaImage(SKImage newImage, ImageActions imageActions, SKCodec codec = null)
@@ -208,9 +213,10 @@ namespace CommonImageActions.Core
                 }
             }
 
-            // Create a new bitmap with the new dimensions
-            var skBmp = new SKBitmap(imageActions.Width.Value, imageActions.Height.Value);
-            var recorder = new SKPictureRecorder();
+            // Record the drawing commands at the new dimensions. Every SkiaSharp object below holds
+            // native memory the GC cannot see, so each one is disposed deterministically; the
+            // previous full-size scratch SKBitmap allocated here was never drawn to and is gone.
+            using var recorder = new SKPictureRecorder();
             var rect = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
             var canvas = recorder.BeginRecording(rect);
 
@@ -223,25 +229,19 @@ namespace CommonImageActions.Core
             //if a shape is specified then clip the canvas to that shape
             if (imageActions.Shape.HasValue)
             {
-                var paint = new SKPaint
-                {
-                    IsAntialias = true,
-                    BlendMode = SKBlendMode.SrcIn
-                };
-
                 if (imageActions.Shape == ImageShape.Circle)
                 {
                     var radius = Math.Min(imageActions.Width.Value, imageActions.Height.Value) / 2;
                     var centerX = imageActions.Width.Value / 2;
                     var centerY = imageActions.Height.Value / 2;
 
-                    var a = new SKPath();
+                    using var a = new SKPath();
                     a.AddCircle(centerX, centerY, radius);
                     canvas.ClipPath(a, antialias: true);
                 }
                 else if (imageActions.Shape == ImageShape.Ellipse)
                 {
-                    var a = new SKPath();
+                    using var a = new SKPath();
                     var centerX = imageActions.Width.Value / 2;
                     var centerY = imageActions.Height.Value / 2;
                     var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
@@ -250,7 +250,7 @@ namespace CommonImageActions.Core
                 }
                 else if (imageActions.Shape == ImageShape.RoundedRectangle)
                 {
-                    var a = new SKPath();
+                    using var a = new SKPath();
                     var r = GetSKRectByWidthAndHeight(0, 0, imageActions.Width.Value, imageActions.Height.Value);
                     if (imageActions.CornerRadius.HasValue)
                     {
@@ -319,20 +319,24 @@ namespace CommonImageActions.Core
                 rotationOffsetX = rotationOffsetY * -1;
             }
 
-            var imagePaint = new SKPaint
+            using var imagePaint = new SKPaint
             {
                 FilterQuality = SKFilterQuality.High,
             };
 
-            if(imageActions.IsGrayscale.HasValue && imageActions.IsGrayscale == true)
-            {
-                imagePaint.ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
+            using var grayscaleFilter = (imageActions.IsGrayscale.HasValue && imageActions.IsGrayscale == true)
+                ? SKColorFilter.CreateColorMatrix(new float[]
                 {
                     0.3f, 0.59f, 0.11f, 0, 0,
                     0.3f, 0.59f, 0.11f, 0, 0,
                     0.3f, 0.59f, 0.11f, 0, 0,
                     0,    0,    0,    1, 0
-                });
+                })
+                : null;
+
+            if (grayscaleFilter != null)
+            {
+                imagePaint.ColorFilter = grayscaleFilter;
             }
             
             //write to the canvas
@@ -397,7 +401,7 @@ namespace CommonImageActions.Core
                     textToPrint = GetInitials(imageActions.Text);
                 }
 
-                var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Black, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+                using var myTypeface = SKTypeface.FromFamilyName("Arial", SKFontStyleWeight.Black, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
                 var myFontSize = (int)(imageActions.Height.Value * 0.85);
 
                 // Set up paint for text
@@ -467,9 +471,9 @@ namespace CommonImageActions.Core
 
             //set encoding quality
             SKData encodedImage = null;
-            var picture = recorder.EndRecording();
+            using var picture = recorder.EndRecording();
             var ouputSize = new SKSizeI(imageActions.Width.Value, imageActions.Height.Value);
-            var outputImage = SKImage.FromPicture(picture, ouputSize);
+            using var outputImage = SKImage.FromPicture(picture, ouputSize);
             switch (exportImageType)
             {
                 default:
