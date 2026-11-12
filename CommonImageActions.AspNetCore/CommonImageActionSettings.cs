@@ -17,13 +17,16 @@ namespace CommonImageActions.AspNetCore
 
             set
             {
-                if (value == "/" || value == null)
+                //no path, or only slashes, means every path is watched. This is kept as an empty
+                //string because a single slash would only match the root of the site
+                var path = value?.Trim('/');
+                if (string.IsNullOrEmpty(path))
                 {
                     this._pathToWatch = String.Empty;
                 }
                 else
                 {
-                    this._pathToWatch = $"/{value.TrimStart('/').TrimEnd('/')}";
+                    this._pathToWatch = $"/{path}";
                 }
             }
         }
@@ -92,6 +95,13 @@ namespace CommonImageActions.AspNetCore
         public Action<HttpContext> OnPrepareResponse { get; set; }
 
         public static string DefaultDiskCacheLocation { get; set; }
+
+        /// <summary>
+        /// How long the disk cache is left alone after writing to it has failed, before it is
+        /// tried again. This keeps a cache folder that can not be written to from failing (and
+        /// logging) on every request. 5 minutes unless changed.
+        /// </summary>
+        public static TimeSpan DiskCacheRetryInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         public static int MaxUrlWidth { get; set; } = 5000;
 

@@ -74,12 +74,14 @@ namespace CommonImageActions.Core.Tests
         {
             // Arrange - an L has its horizontal bar at the bottom, so an upright L has more of
             // its colour in the bottom half of the image than in the top half
+            TestFont.Register();
             var rotated = TestHelpers.LoadTestImage("rotate180.jpg");
             var actions = new ImageActions()
             {
                 Width = 400,
                 Height = 300,
                 Text = "L",
+                FontFamily = TestFont.FamilyName,
                 TextColor = "ff00ff",
                 Format = SKEncodedImageFormat.Png
             };
@@ -110,11 +112,8 @@ namespace CommonImageActions.Core.Tests
                 }
             }
 
-            //a machine with no fonts installed draws no text at all, there is nothing to check then
-            if (topHalf + bottomHalf == 0)
-            {
-                return;
-            }
+            //the font is built by the tests, so the text is drawn whatever fonts the machine has
+            Assert.True(topHalf + bottomHalf > 0, "No text was drawn.");
 
             Assert.True(bottomHalf > topHalf, $"Text is upside down. Top half {topHalf} pixels, bottom half {bottomHalf} pixels.");
         }

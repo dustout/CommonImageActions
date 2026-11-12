@@ -382,18 +382,14 @@ namespace CommonImageActions.Core.Tests
             var image = TestHelpers.CreateImage(200, 200, color: White);
 
             // Act
-            var topLeft = await ProcessAsync(image, new ImageActions() { Text = "X", TextColor = "ff00ff", FontSize = 40, TextAnchor = ImageAnchor.TopLeft });
-            var bottomRight = await ProcessAsync(image, new ImageActions() { Text = "X", TextColor = "ff00ff", FontSize = 40, TextAnchor = ImageAnchor.BottomRight });
+            TestFont.Register();
+            var topLeft = await ProcessAsync(image, new ImageActions() { Text = "X", FontFamily = TestFont.FamilyName, TextColor = "ff00ff", FontSize = 40, TextAnchor = ImageAnchor.TopLeft });
+            var bottomRight = await ProcessAsync(image, new ImageActions() { Text = "X", FontFamily = TestFont.FamilyName, TextColor = "ff00ff", FontSize = 40, TextAnchor = ImageAnchor.BottomRight });
 
             // Assert
             var topLeftBounds = FindColor(topLeft, Magenta);
             var bottomRightBounds = FindColor(bottomRight, Magenta);
-
-            //a machine with no fonts installed draws no text at all, there is nothing to check then
-            if (topLeftBounds.IsEmpty)
-            {
-                return;
-            }
+            Assert.False(topLeftBounds.IsEmpty, "No text was drawn.");
 
             Assert.True(topLeftBounds.Right < 100 && topLeftBounds.Bottom < 100, $"Text should be in the top left but was at {topLeftBounds}.");
             Assert.True(bottomRightBounds.Left > 100 && bottomRightBounds.Top > 100, $"Text should be in the bottom right but was at {bottomRightBounds}.");
@@ -407,16 +403,14 @@ namespace CommonImageActions.Core.Tests
             var text = "one two three four five six seven eight";
 
             // Act
-            var oneLine = await ProcessAsync(image, new ImageActions() { Text = text, TextColor = "ff00ff", FontSize = 20 });
-            var wrapped = await ProcessAsync(image, new ImageActions() { Text = text, TextColor = "ff00ff", FontSize = 20, TextWrap = true });
+            TestFont.Register();
+            var oneLine = await ProcessAsync(image, new ImageActions() { Text = text, FontFamily = TestFont.FamilyName, TextColor = "ff00ff", FontSize = 20 });
+            var wrapped = await ProcessAsync(image, new ImageActions() { Text = text, FontFamily = TestFont.FamilyName, TextColor = "ff00ff", FontSize = 20, TextWrap = true });
 
             // Assert
             var oneLineBounds = FindColor(oneLine, Magenta);
             var wrappedBounds = FindColor(wrapped, Magenta);
-            if (oneLineBounds.IsEmpty)
-            {
-                return;
-            }
+            Assert.False(oneLineBounds.IsEmpty, "No text was drawn.");
 
             Assert.True(wrappedBounds.Height > oneLineBounds.Height * 2, $"Wrapped text was {wrappedBounds.Height} pixels tall and one line was {oneLineBounds.Height}.");
             Assert.True(wrappedBounds.Left > 0 && wrappedBounds.Right < 199, "Wrapped text should fit inside the image.");

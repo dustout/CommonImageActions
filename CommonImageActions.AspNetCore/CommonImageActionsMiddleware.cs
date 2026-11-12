@@ -36,9 +36,6 @@ namespace CommonImageActions.AspNetCore
 
         private static readonly string _libraryVersion = typeof(ImageProcessor).Assembly.GetName().Version?.ToString();
 
-        //how long to leave a cache folder alone after a write to it has failed
-        private static readonly TimeSpan DiskCacheRetryInterval = TimeSpan.FromMinutes(5);
-
         //cache folders that could not be written to, and when that was found out
         private static readonly ConcurrentDictionary<string, DateTime> _diskCacheWriteFailures = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
@@ -304,21 +301,21 @@ namespace CommonImageActions.AspNetCore
             //for a while rather than failing and logging on every single request
             var folder = Path.GetDirectoryName(cachedFilePath);
             if (_diskCacheWriteFailures.TryGetValue(folder, out var failedAt)
-                && DateTime.UtcNow - failedAt < DiskCacheRetryInterval)
+                && DateTime.UtcNow - failedAt < CommonImageActionSettings.DiskCacheRetryInterval)
             {
                 return;
             }
 
             try
             {
-                await DiskCache.WriteAsync(cachedFilePath, imageData, _options.DiskCacheMaxSizeBytes, LogError);
+                await DiskCache.WriteAsync(cachedFilePath, imageData, _options.DiskCacheMaxAge, _options.DiskCacheMaxSizeBytes, LogError);
                 _diskCacheWriteFailures.TryRemove(folder, out _);
             }
             catch (Exception ex)
             {
                 _diskCacheWriteFailures[folder] = DateTime.UtcNow;
                 LogError(ex, $"Error writing cached file {cachedFilePath}. Images are still being made and sent, but they are not being cached. " +
-                    $"Writing to the cache will be tried again in {DiskCacheRetryInterval.TotalMinutes} minutes. " +
+                    $"Writing to the cache will be tried again in {CommonImageActionSettings.DiskCacheRetryInterval.TotalMinutes} minutes. " +
                     $"Set {nameof(CommonImageActionSettings.DiskCacheLocation)} to a folder that can be written to, or set {nameof(CommonImageActionSettings.UseDiskCache)} to false.");
             }
         }

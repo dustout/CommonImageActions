@@ -47,7 +47,7 @@ namespace CommonImageActions.AspNetCore
         /// <summary>
         /// Write a file to the cache, then delete the oldest files if the folder is over its limit.
         /// </summary>
-        public static async Task WriteAsync(string filePath, byte[] data, long? maxFolderBytes, Action<Exception, string> logError)
+        public static async Task WriteAsync(string filePath, byte[] data, TimeSpan? maxAge, long? maxFolderBytes, Action<Exception, string> logError)
         {
             var folder = Path.GetDirectoryName(filePath);
             if (Directory.Exists(folder) == false)
@@ -55,22 +55,48 @@ namespace CommonImageActions.AspNetCore
                 Directory.CreateDirectory(folder);
             }
 
-            //write to a temporary name and rename it when it is complete, so that another request
-            //can never read a file that is only half written
+            //when several requests ask for the same new image at once, each of them makes it and
+            //comes here. The first one in has already written the file, and since the name is made
+            //from everything that goes into the image the others would only write the same thing
+            var existing = new FileInfo(filePath);
+            var isStale = existing.Exists && maxAge.HasValue && DateTime.UtcNow - existing.LastWriteTimeUtc > maxAge.Value;
+            if (existing.Exists && isStale == false)
+            {
+                return;
+            }
+
+            //write to a temporary name and swap it in when it is complete, so that another request
+            //can never read a file that is only half written. If this write fails the folder can
+            //not be written to, and that is left to be reported
             var tempPath = $"{filePath}.{Guid.NewGuid():N}{TempExtension}";
             try
             {
                 await File.WriteAllBytesAsync(tempPath, data);
-                if (File.Exists(filePath))
+                try
                 {
-                    File.Delete(filePath);
+                    if (isStale)
+                    {
+                        //swap the old file for the new one in a single step
+                        File.Replace(tempPath, filePath, null);
+                    }
+                    else
+                    {
+                        File.Move(tempPath, filePath);
+                    }
                 }
-
-                File.Move(tempPath, filePath);
+                catch (IOException)
+                {
+                    //another request got its copy of the same image in first, or the file is
+                    //being read right now. Either way there is a good file there, so leave it
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    //the same thing, which is how windows can report a file that is in use
+                }
             }
             finally
             {
-                //if the rename failed, most likely because another request wrote the same file first
+                //when the swap did not happen the temporary file is still there
                 if (File.Exists(tempPath))
                 {
                     File.Delete(tempPath);

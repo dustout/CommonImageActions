@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
+using System.Collections.Concurrent;
 
 namespace CommonImageActions.AspNetCore.Tests
 {
@@ -18,11 +20,27 @@ namespace CommonImageActions.AspNetCore.Tests
         public const int PhotoWidth = 400;
         public const int PhotoHeight = 300;
 
+        /// <summary>
+        /// The password of wwwroot/test/protected.pdf
+        /// </summary>
+        public const string PdfPassword = "open sesame";
+
         public string ContentRoot { get; }
 
         public string WebRoot => Path.Combine(ContentRoot, "wwwroot");
 
         public string CacheLocation => Path.Combine(ContentRoot, "cache");
+
+        /// <summary>
+        /// When set the site is served from under this path (as an application in a sub folder of
+        /// a larger site is), for example "/app".
+        /// </summary>
+        public string? PathBase { get; set; }
+
+        /// <summary>
+        /// Everything the site logged as a warning or an error.
+        /// </summary>
+        public ConcurrentQueue<string> Problems { get; } = new ConcurrentQueue<string>();
 
         public TestSite()
         {
@@ -32,6 +50,10 @@ namespace CommonImageActions.AspNetCore.Tests
             var photo = TestHelpers.CreateImage(PhotoWidth, PhotoHeight, SKEncodedImageFormat.Jpeg);
             File.WriteAllBytes(Path.Combine(WebRoot, "test", "photo.jpg"), photo);
             File.WriteAllBytes(Path.Combine(WebRoot, "test", "my photo.jpg"), photo);
+
+            //a pdf with a red first page and a blue second page, and one that needs a password with a green page
+            File.WriteAllBytes(Path.Combine(WebRoot, "test", "document.pdf"), TestPdf.Create(TestHelpers.Red, TestHelpers.Blue));
+            File.WriteAllBytes(Path.Combine(WebRoot, "test", "protected.pdf"), TestPdf.CreateProtected(PdfPassword, TestHelpers.Green));
 
             //a file that is outside of wwwroot and must never be served
             File.WriteAllBytes(Path.Combine(ContentRoot, "secret.jpg"), photo);
@@ -54,12 +76,18 @@ namespace CommonImageActions.AspNetCore.Tests
 
             return new HostBuilder()
                 .UseContentRoot(ContentRoot)
+                .ConfigureLogging(logging => logging.AddProvider(new ProblemCollector(Problems)))
                 .ConfigureWebHost(webBuilder =>
                 {
                     webBuilder
                         .UseTestServer()
                         .Configure(app =>
                         {
+                            if (string.IsNullOrEmpty(PathBase) == false)
+                            {
+                                app.UsePathBase(PathBase);
+                            }
+
                             foreach (var setting in settings)
                             {
                                 app.UseCommonImageActions(setting);
@@ -104,6 +132,37 @@ namespace CommonImageActions.AspNetCore.Tests
                 //a file is still in use, it is in the temp folder so leave it
             }
             catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        /// <summary>
+        /// A logger that keeps the warnings and errors, so a test can check what was logged.
+        /// </summary>
+        private sealed class ProblemCollector : ILoggerProvider, ILogger
+        {
+            private readonly ConcurrentQueue<string> _problems;
+
+            public ProblemCollector(ConcurrentQueue<string> problems)
+            {
+                _problems = problems;
+            }
+
+            public ILogger CreateLogger(string categoryName) => this;
+
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                if (IsEnabled(logLevel))
+                {
+                    _problems.Enqueue(formatter(state, exception));
+                }
+            }
+
+            public void Dispose()
             {
             }
         }

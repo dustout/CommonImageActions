@@ -175,7 +175,11 @@ The disk cache is **on by default** (`UseDiskCache = true`), in `<wwwroot>/cache
 10 GB (`DiskCacheMaxSizeBytes`). Consequences to keep in mind:
 
 - It can be on somewhere that is not writable. A failed write is logged once and that folder is
-  then left alone for 5 minutes (`_diskCacheWriteFailures`), instead of failing on every request.
+  then left alone for 5 minutes (`_diskCacheWriteFailures`, the time is the static
+  `CommonImageActionSettings.DiskCacheRetryInterval`), instead of failing on every request.
+- Only failing to write the temporary file counts as a failure. Several requests for the same
+  new image at once all reach `DiskCache.WriteAsync`; the first writes the file and the rest
+  skip it, and losing the race to move a file into place is ignored.
 - Measuring the folder and deleting old files always happens on a background task.
 - The cache key includes the library version but not the build, so while developing the library
   an image cached before a code change is served after it. The sample app turns the cache off
@@ -210,19 +214,47 @@ The middleware must be registered before `app.UseStaticFiles()`.
   tell what a crop, flip or rotation did), `GetImageInfo`, `GetPixel`, `AssertColor` and
   `LoadTestImage`. The Pdf and AspNetCore test projects reference the Core test project to
   reuse them.
-- Two tests use reflection over `ImageActions` so a new property cannot be half-added:
-  `CopyConstructor_ShouldCopyEveryProperty` and `GetCacheFileName_ShouldChange_WhenAnyPropertyChanges`.
+- Three tests use reflection over `ImageActions` so a new property cannot be half-added:
+  `CopyConstructor_ShouldCopyEveryProperty`, `GetCacheFileName_ShouldChange_WhenAnyPropertyChanges`
+  and `FluentBuilder_ShouldHaveAMethodForEveryImageAction`.
   A property of a new type needs a sample value added to `TestHelpers.CreateValue`.
-- Text tests return early when no text was drawn, so they pass on a machine with no fonts.
+- **Test data is built in code, not stored**, so tests do not depend on the machine:
+  - `TestFont.cs` builds a TrueType font in memory. Every character is a solid block, except
+    `L` (an L shape, to tell which way up text was drawn) and space. Call `TestFont.Register()`
+    and use `FontFamily = TestFont.FamilyName`. Text tests must use it: a build server may
+    have no fonts, and the default font draws nothing there.
+  - `TestPdf.cs` builds a PDF where each page is one solid colour, optionally encrypted with a
+    password (`CreateProtected`). The colour that comes back shows which page was rendered.
+  - `TestHelpers` also has `WithExifOrientation` (adds any of the eight EXIF orientations to a
+    JPEG), `CreateBmp`, `CreateIco` and `CreateAnimatedGif`.
+  - `TestInfrastructureTests.cs` checks that all of the above really are what they claim to be.
+- **Snapshot tests** (`SnapshotTests.cs`) compare whole images with the PNGs in
+  `CommonImageActions.Core.Tests/Snapshots/`, allowing a small difference because Skia does not
+  draw identically on every machine. When a change to the output is intended, run the tests
+  once with the environment variable `UPDATE_SNAPSHOTS=1`, **look at the new images**, and
+  commit them. A failure writes what was produced to `SnapshotFailures/` in the test output
+  folder. Snapshots do not include text, which is drawn differently on Windows and Linux.
+- `DocumentationSamplesTests.cs` (in the Pdf test project, which is the one that can see both
+  Core and Pdf) reads the code samples out of `wwwroot/index.html` and the README, compiles them
+  with Roslyn and runs each one. It also fails if the README and the sample page differ, or if
+  a README image is missing from `/Samples`.
 - The EXIF test photos (`rotate90.jpg`, `rotate180.jpg`) are not duplicated: the Core test
   csproj links them from the sample app's `wwwroot/test/` into the test output folder.
 - Middleware tests spin up an in-memory host with `Microsoft.AspNetCore.TestHost`.
   `CommonImageActions.AspNetCore.Tests/TestSite.cs` creates a throw-away site in the temp
   folder (with a file outside `wwwroot` for traversal tests) and can start a real Kestrel
   file server on a free local port to stand in for a remote file server.
-- The `*RegressionTests.cs`, `*FeatureTests.cs` and `*RequestTests.cs` files assert sizes,
-  formats, headers and individual pixels. The older tests only check that the output decodes as an image. Nothing
-  compares whole images, so visual changes still need a look in the sample app.
+  `TestSite.Problems` collects everything the site logged as a warning or error, and
+  `TestSite.PathBase` serves the site from a sub folder.
+- The `*RegressionTests.cs`, `*FeatureTests.cs`, `*CoverageTests.cs` and `*RequestTests.cs`
+  files assert sizes, formats, headers and individual pixels. The oldest tests only check that
+  the output decodes as an image.
+- Tests that depend on how Windows treats file paths (backslashes, drive letters, file names
+  that are not case sensitive) are wrapped in `OperatingSystem.IsWindows()`. CI runs on both
+  Windows and Linux so that they are exercised.
+- A few tests change a process-wide static (`CommonImageActionSettings.DiskCacheRetryInterval`)
+  and put it back in a `finally`. Keep such tests in the same class as anything that depends
+  on the value, since xUnit runs classes in parallel but the tests in one class in order.
 
 ### Benchmarks
 
@@ -282,9 +314,9 @@ dotnet run -c Release --project CommonImageActions.Core.Benchmarks
 The sample app listens on `http://localhost:5259` (and `https://localhost:7206` with the https
 profile).
 
-CI (`.github/workflows/dotnet.yml`) runs restore, build and test on `ubuntu-latest` with .NET 8
-for pushes and pull requests against `master`. Changes must therefore work on Linux as well as
-Windows.
+CI (`.github/workflows/dotnet.yml`) runs restore, build and test with .NET 8 on both
+`ubuntu-latest` and `windows-latest`, for pushes and pull requests against `master`. Changes
+must work on both: file paths and font drawing are where the two differ.
 
 ## Conventions and constraints
 
