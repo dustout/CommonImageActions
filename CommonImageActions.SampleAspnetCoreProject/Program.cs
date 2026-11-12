@@ -5,10 +5,14 @@ var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 var _env = app.Environment;
 
+//The disk cache is on unless it is turned off. It is turned off for most of this sample so that
+//a change to the library shows up straight away instead of an image that was cached before the
+//change. The /cached path further down shows the cache working.
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/test"
+        PathToWatch = "/test",
+        UseDiskCache = false
     }
 );
 
@@ -18,6 +22,7 @@ app.UseCommonImageActions(
         PathToWatch = "/user/icons/",
         UseFileNameAsText = true,
         IsVirtual = true,
+        UseDiskCache = false,
         DefaultImageActions = new ImageActions()
         {
             Height = 192,
@@ -35,6 +40,7 @@ app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/logos",
+        UseDiskCache = false,
         DefaultImageActions = new ImageActions()
         {
             Height = 50,
@@ -51,6 +57,7 @@ app.UseCommonImageActions(
         PathToWatch = "/profilepicture",
         IsVirtual = true,
         UseFileNameAsText = true,
+        UseDiskCache = false,
         DefaultImageActions = new ImageActions()
         {
             Height = 100,
@@ -63,12 +70,15 @@ app.UseCommonImageActions(
     }
 );
 
+//the disk cache as it is by default: on, in wwwroot/cache, and limited to 10 gigabytes.
+//the location and the limit are only written out here to show how they are changed
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/cached",
         UseDiskCache = true,
-        DiskCacheLocation = Path.Join(_env.WebRootPath, "cache")
+        DiskCacheLocation = Path.Join(_env.WebRootPath, "cache"),
+        DiskCacheMaxSizeBytes = CommonImageActionSettings.DefaultDiskCacheMaxSizeBytes
     }
 );
 
@@ -77,6 +87,7 @@ app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/two/deep",
+        UseDiskCache = false,
         DefaultImageActions = new ImageActions()
         {
             WatermarkImage = File.ReadAllBytes(Path.Join(_env.WebRootPath, "test", "logo.png")),
@@ -89,7 +100,8 @@ app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/virtual",
-        IsVirtual = true
+        IsVirtual = true,
+        UseDiskCache = false
     }
 );
 
@@ -97,7 +109,8 @@ app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
         PathToWatch = "/remote",
-        RemoteFileServerUrl = "https://dustingamester.com/img/"
+        RemoteFileServerUrl = "https://dustingamester.com/img/",
+        UseDiskCache = false
     }
 );
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SkiaSharp;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
@@ -34,6 +35,12 @@ namespace CommonImageActions.AspNetCore
             .ToArray();
 
         private static readonly string _libraryVersion = typeof(ImageProcessor).Assembly.GetName().Version?.ToString();
+
+        //how long to leave a cache folder alone after a write to it has failed
+        private static readonly TimeSpan DiskCacheRetryInterval = TimeSpan.FromMinutes(5);
+
+        //cache folders that could not be written to, and when that was found out
+        private static readonly ConcurrentDictionary<string, DateTime> _diskCacheWriteFailures = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
         private readonly RequestDelegate _next;
         private readonly CommonImageActionSettings _options;
@@ -250,19 +257,6 @@ namespace CommonImageActions.AspNetCore
                     throw new NotImplementedException($"{imageExtension} not supported");
                 }
 
-                //write to disk cache if enabled
-                if (cachedFilePath != null && isFromCache == false)
-                {
-                    try
-                    {
-                        await DiskCache.WriteAsync(cachedFilePath, imageData, _options.DiskCacheMaxSizeBytes, LogError);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError(ex, $"Error writing cached file {cachedFilePath}.");
-                    }
-                }
-
                 //a remote image is identified by what it turned out to be
                 if (etag == null)
                 {
@@ -270,6 +264,7 @@ namespace CommonImageActions.AspNetCore
                     if (IsNotModified(context.Request, etag, lastModified))
                     {
                         SendNotModified(context, etag, lastModified);
+                        await WriteToDiskCacheAsync(cachedFilePath, imageData, isFromCache);
                         return;
                     }
                 }
@@ -286,10 +281,46 @@ namespace CommonImageActions.AspNetCore
                     await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
                 }
 
+                //write to disk cache if enabled. This is after the image has been sent so that
+                //whoever asked for it is not kept waiting on the disk
+                await WriteToDiskCacheAsync(cachedFilePath, imageData, isFromCache);
+
                 return;
             }
             // Call the next delegate/middleware in the pipeline
             await _next(context);
+        }
+
+        private async Task WriteToDiskCacheAsync(string cachedFilePath, byte[] imageData, bool isFromCache)
+        {
+            //nothing to do when the cache is off, or when this image came out of the cache
+            if (cachedFilePath == null || isFromCache)
+            {
+                return;
+            }
+
+            //the cache is on unless it is turned off, so it can be on somewhere that can not be
+            //written to (a read only file system for example). When a write fails, stop trying
+            //for a while rather than failing and logging on every single request
+            var folder = Path.GetDirectoryName(cachedFilePath);
+            if (_diskCacheWriteFailures.TryGetValue(folder, out var failedAt)
+                && DateTime.UtcNow - failedAt < DiskCacheRetryInterval)
+            {
+                return;
+            }
+
+            try
+            {
+                await DiskCache.WriteAsync(cachedFilePath, imageData, _options.DiskCacheMaxSizeBytes, LogError);
+                _diskCacheWriteFailures.TryRemove(folder, out _);
+            }
+            catch (Exception ex)
+            {
+                _diskCacheWriteFailures[folder] = DateTime.UtcNow;
+                LogError(ex, $"Error writing cached file {cachedFilePath}. Images are still being made and sent, but they are not being cached. " +
+                    $"Writing to the cache will be tried again in {DiskCacheRetryInterval.TotalMinutes} minutes. " +
+                    $"Set {nameof(CommonImageActionSettings.DiskCacheLocation)} to a folder that can be written to, or set {nameof(CommonImageActionSettings.UseDiskCache)} to false.");
+            }
         }
 
         private void LogError(Exception ex, string message)

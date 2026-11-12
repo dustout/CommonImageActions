@@ -22,6 +22,7 @@ namespace CommonImageActions.AspNetCore
         {
             public long Bytes;
             public int IsTrimming;
+            public volatile bool IsMeasured;
         }
 
         /// <summary>
@@ -81,17 +82,23 @@ namespace CommonImageActions.AspNetCore
                 return;
             }
 
-            //the folder is measured the first time it is used, after that the size is kept up to date here
-            var state = Folders.GetOrAdd(folder, x => new FolderState() { Bytes = MeasureFolder(x) - data.Length });
+            //the size of the folder is kept up to date here as files are written, so the folder
+            //does not have to be measured on every write
+            var state = Folders.GetOrAdd(folder, x => new FolderState());
             var total = Interlocked.Add(ref state.Bytes, data.Length);
-            if (total > maxFolderBytes.Value && Interlocked.CompareExchange(ref state.IsTrimming, 1, 0) == 0)
+
+            //the folder is measured properly the first time it is used (it may already hold files
+            //from before the application started) and again whenever it looks to be over the limit
+            if ((state.IsMeasured == false || total > maxFolderBytes.Value)
+                && Interlocked.CompareExchange(ref state.IsTrimming, 1, 0) == 0)
             {
-                //deleting files is not something the request should wait for
+                //measuring a large folder and deleting files is not something a request should wait for
                 _ = Task.Run(() =>
                 {
                     try
                     {
                         Interlocked.Exchange(ref state.Bytes, Trim(folder, maxFolderBytes.Value));
+                        state.IsMeasured = true;
                     }
                     catch (Exception ex)
                     {
@@ -105,26 +112,25 @@ namespace CommonImageActions.AspNetCore
             }
         }
 
-        private static long MeasureFolder(string folder)
+        /// <summary>
+        /// Measure the folder and, if it is over its limit, delete the oldest files until it is
+        /// comfortably under. Returns the size of what is left.
+        /// </summary>
+        private static long Trim(string folder, long maxFolderBytes)
         {
             if (Directory.Exists(folder) == false)
             {
                 return 0;
             }
 
-            return new DirectoryInfo(folder).EnumerateFiles().Sum(x => x.Length);
-        }
-
-        /// <summary>
-        /// Delete the oldest files until the folder is comfortably under its limit. Returns the
-        /// size of what is left.
-        /// </summary>
-        private static long Trim(string folder, long maxFolderBytes)
-        {
             var files = new DirectoryInfo(folder).EnumerateFiles()
                 .OrderBy(x => x.LastWriteTimeUtc)
                 .ToList();
             var total = files.Sum(x => x.Length);
+            if (total <= maxFolderBytes)
+            {
+                return total;
+            }
 
             //go a little under the limit so that the very next write does not trim again
             var target = (long)(maxFolderBytes * 0.8);

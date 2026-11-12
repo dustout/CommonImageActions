@@ -34,8 +34,21 @@ namespace CommonImageActions.AspNetCore
 
         public bool UseFileNameAsText { get; set; }
 
-        public bool UseDiskCache { get; set; }
+        /// <summary>
+        /// The disk cache size that is used unless <see cref="DiskCacheMaxSizeBytes"/> is changed: 10 gigabytes.
+        /// </summary>
+        public const long DefaultDiskCacheMaxSizeBytes = 10L * 1024 * 1024 * 1024;
 
+        /// <summary>
+        /// Keep each image that is made on disk, and send that copy the next time the same image
+        /// is asked for. On unless it is set to false.
+        /// </summary>
+        public bool UseDiskCache { get; set; } = true;
+
+        /// <summary>
+        /// The folder the cached images are kept in. It has to be writable. When not set it is
+        /// <see cref="DefaultDiskCacheLocation"/>, which is the cache folder inside wwwroot.
+        /// </summary>
         public string DiskCacheLocation { get; set; }
 
         /// <summary>
@@ -46,9 +59,9 @@ namespace CommonImageActions.AspNetCore
 
         /// <summary>
         /// The most disk space, in bytes, the disk cache is allowed to use. When it grows past this
-        /// the oldest files are deleted. There is no limit when not set.
+        /// the oldest files are deleted. 10 gigabytes unless changed, set it to null for no limit.
         /// </summary>
-        public long? DiskCacheMaxSizeBytes { get; set; }
+        public long? DiskCacheMaxSizeBytes { get; set; } = DefaultDiskCacheMaxSizeBytes;
 
         /// <summary>
         /// How long a browser or CDN may reuse an image without asking the server again. Sent as

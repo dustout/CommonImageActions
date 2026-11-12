@@ -310,6 +310,62 @@ namespace CommonImageActions.AspNetCore.Tests
         }
 
         [Fact]
+        public void DiskCache_ShouldBeOnWithATenGigabyteLimit_UnlessChanged()
+        {
+            var settings = new CommonImageActionSettings();
+
+            Assert.True(settings.UseDiskCache);
+            Assert.Equal(10L * 1024 * 1024 * 1024, settings.DiskCacheMaxSizeBytes);
+        }
+
+        [Fact]
+        public async Task ShouldUseTheDiskCache_UnlessItIsTurnedOff()
+        {
+            using var site = new TestSite();
+            var offCacheLocation = Path.Combine(site.ContentRoot, "cache-that-is-off");
+            using var host = await site.StartAsync(
+                new CommonImageActionSettings() { PathToWatch = "/test" },
+                new CommonImageActionSettings() { PathToWatch = "/virtual", IsVirtual = true, UseDiskCache = false, DiskCacheLocation = offCacheLocation });
+            var client = host.GetTestClient();
+
+            // nothing was said about the cache, so it is used
+            var first = await client.GetByteArrayAsync("/test/photo.jpg?w=50");
+            var cachedFile = Directory.GetFiles(site.CacheLocation).Single();
+
+            // mark the cached file to prove the second request is answered from it
+            var marker = TestHelpers.CreateImage(5, 5, SKEncodedImageFormat.Png, TestHelpers.Blue);
+            File.WriteAllBytes(cachedFile, marker);
+            var second = await client.GetByteArrayAsync("/test/photo.jpg?w=50");
+
+            // turned off, so nothing is written
+            var notCached = await client.GetAsync("/virtual/x.png?w=50");
+
+            Assert.Equal(50, TestHelpers.GetImageInfo(first).Width);
+            Assert.Equal(marker, second);
+            Assert.Equal(HttpStatusCode.OK, notCached.StatusCode);
+            Assert.False(Directory.Exists(offCacheLocation));
+        }
+
+        [Fact]
+        public async Task ShouldStillSendImages_WhenTheCacheFolderCanNotBeWrittenTo()
+        {
+            using var site = new TestSite();
+
+            //a folder can not be made inside of something that is a file
+            var impossibleLocation = Path.Combine(site.ContentRoot, "secret.jpg", "cache");
+            using var host = await site.StartAsync(new CommonImageActionSettings() { PathToWatch = "/test", DiskCacheLocation = impossibleLocation });
+            var client = host.GetTestClient();
+
+            var first = await client.GetAsync("/test/photo.jpg?w=50");
+            var second = await client.GetAsync("/test/photo.jpg?w=60");
+
+            Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+            Assert.Equal(50, TestHelpers.GetImageInfo(await first.Content.ReadAsByteArrayAsync()).Width);
+            Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+            Assert.Equal(60, TestHelpers.GetImageInfo(await second.Content.ReadAsByteArrayAsync()).Width);
+        }
+
+        [Fact]
         public async Task ShouldMakeTheImageAgain_WhenTheCachedFileIsOlderThanDiskCacheMaxAge()
         {
             using var site = new TestSite();

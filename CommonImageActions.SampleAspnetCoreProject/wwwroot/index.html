@@ -4,50 +4,103 @@
     <meta charset="utf-8" />
     <title>Styles</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+    <style>
+        /* the c# under each example, the same result made in code instead of with a url */
+        .code-example {
+            text-align: left;
+            font-size: 0.64rem;
+            background: #f6f8fa;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            margin: 0.75rem 0 0 0;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* inside a card the code is let into the card's padding so the longest lines fit without wrapping */
+        .card .code-example {
+            margin-left: -0.5rem;
+            margin-right: -0.5rem;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
+
+        <div class="mb-5">
+            <h2>How To Read These Examples</h2>
+            <p>
+                Each example shows the image, the url that made it through the asp.net core middleware,
+                and the code that makes the same image with the fluent API. In the code <code>image</code>
+                is the bytes of the original file and the result is the bytes of the new image.
+            </p>
+            <pre class="code-example" style="font-size: 0.8rem;"><code>using CommonImageActions.Core;
+using CommonImageActions.Pdf;
+using SkiaSharp;
+
+byte[] image = File.ReadAllBytes("thumbsUp.jpg");
+
+byte[] result = await ImageProcessor.Process(image)
+    .Width(100)
+    .ToImageAsync();</code></pre>
+        </div>
 
         <div class="mb-5">
             <h2>Modes</h2>
             <div class="row">
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&m=Stretch&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=Stretch&f=png"></p>
                         <h5 class="card-title">Stretch (Default)</h5>
-                        <code>/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=Stretch&f=png</code>
+                        <code>/test/thumbsUp.jpg?w=100&h=100&m=Stretch&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Stretch)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&m=Max&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=Max&f=png"></p>
                         <h5 class="card-title">Max</h5>
-                        <code>/test/thumbsUp.jpg?s=circle&w=100&h=100&m=Max&f=png</code>
+                        <code>/test/thumbsUp.jpg?w=100&h=100&m=Max&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Max)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&m=Fit&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=Fit&f=png"></p>
                         <h5 class="card-title">Fit</h5>
-                        <code>/test/thumbsUp.jpg?s=ellipse&w=100&h=100&m=Fit&f=png</code>
+                        <code>/test/thumbsUp.jpg?w=100&h=100&m=Fit&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Fit)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png"></p>
                         <h5 class="card-title">Zoom</h5>
-                        <code>/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png</code>
+                        <code>/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -58,51 +111,76 @@
             <div class="row">
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png"></p>
                         <h5 class="card-title">None (Default)</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&m=zoom&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?s=circle&w=100&h=100&m=zoom&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?s=circle&w=100&h=100&m=zoom&f=png"></p>
                         <h5 class="card-title">Circle</h5>
                         <code>/test/thumbsUp.jpg?s=circle&w=100&h=100&m=zoom&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Shape(ImageShape.Circle)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?s=ellipse&w=150&h=100&m=zoom&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?s=ellipse&w=150&h=100&m=zoom&f=png"></p>
                         <h5 class="card-title">Ellipse</h5>
                         <code>/test/thumbsUp.jpg?s=ellipse&w=150&h=100&m=zoom&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Shape(ImageShape.Ellipse)
+    .Width(150)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png"></p>
                         <h5 class="card-title">Rounded Rectangle</h5>
                         <code>/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Shape(ImageShape.RoundedRectangle)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png&cr=30">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png&cr=30"></p>
                         <h5 class="card-title">Rounded Rectangle (custom corner)</h5>
                         <code>/test/thumbsUp.jpg?s=RoundedRectangle&w=100&h=100&m=zoom&f=png&cr=30</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Shape(ImageShape.RoundedRectangle)
+    .CornerRadius(30)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -114,71 +192,113 @@
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&f=png"></p>
                         <h5 class="card-title">Normal</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=DustinG</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Text("DustinG")
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&f=png"></p>
                         <h5 class="card-title">Initials</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=DustinG&in=true</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Text("DustinG")
+    .AsInitials(true)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&tc=00ff00&f=png">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&tc=00ff00&f=png"></p>
                         <h5 class="card-title">Color Hex</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=DustinG&in=true&tc=00ff00</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Text("DustinG")
+    .AsInitials(true)
+    .TextColor("00ff00")
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&tc=00ff00&f=png&c=0000ff">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&tc=00ff00&f=png&c=0000ff"></p>
                         <h5 class="card-title">Background Color (Manual Hex)</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=DustinG&in=true&tc=00ff00&c=0000ff</code>
+                        <pre class="code-example"><code>//a colour replaces the picture,
+//so no image is needed
+await new ImageActionQueryBuilder()
+    .Width(100)
+    .Height(100)
+    .Text("DustinG")
+    .AsInitials(true)
+    .TextColor("00ff00")
+    .ImageColor("0000ff")
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&ft=true">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=DustinG&in=true&ft=true"></p>
                         <h5 class="card-title">Background Color (Auto From Text)</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=DustinG&in=true&ft=true</code>
+                        <pre class="code-example"><code>await new ImageActionQueryBuilder()
+    .Width(100)
+    .Height(100)
+    .Text("DustinG")
+    .AsInitials(true)
+    .ChooseImageColorFromTextValue(true)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&h=100&t=JustinGt&in=true&ft=true">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&h=100&t=JustinGt&in=true&ft=true"></p>
                         <h5 class="card-title">Background Color (Auto From Text)</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&f=png&t=JustinGt&in=true&ft=true</code>
+                        <pre class="code-example"><code>await new ImageActionQueryBuilder()
+    .Width(100)
+    .Height(100)
+    .Text("JustinGt")
+    .AsInitials(true)
+    .ChooseImageColorFromTextValue(true)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/profilepicture/DustinG.png?w=100">
-                        </p>
+                        <p><img src="/profilepicture/DustinG.png?w=100"></p>
                         <h5 class="card-title">Text From File Name</h5>
                         <code>/profilepicture/DustinG.png</code>
+                        <pre class="code-example"><code>//the url takes its text from the file
+//name, the rest is set in Program.cs
+await new ImageActionQueryBuilder()
+    .Text("DustinG")
+    .AsInitials(true)
+    .ChooseImageColorFromTextValue(true)
+    .Shape(ImageShape.Circle)
+    .Width(100)
+    .Height(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -190,21 +310,26 @@
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/test.pdf?w=100">
-                        </p>
+                        <p><img src="/test/test.pdf?w=100"></p>
                         <h5 class="card-title">Normal</h5>
                         <code>/test/test.pdf?w=100</code>
+                        <pre class="code-example"><code>var pdf = File.ReadAllBytes("test.pdf");
+
+await PdfProcessor.Process(pdf)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/test.pdf?w=100&p=2">
-                        </p>
+                        <p><img src="/test/test.pdf?w=100&p=2"></p>
                         <h5 class="card-title">Page 2</h5>
                         <code>/test/test.pdf?w=100&p=2</code>
+                        <pre class="code-example"><code>await PdfProcessor.Process(pdf)
+    .Width(100)
+    .Page(2)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -216,11 +341,13 @@
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/thumbsUp.jpg?w=100&g=true">
-                        </p>
+                        <p><img src="/test/thumbsUp.jpg?w=100&g=true"></p>
                         <h5 class="card-title">Grayscale</h5>
                         <code>/test/thumbsUp.jpg?w=100&g=true</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .IsGrayscale(true)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -229,45 +356,50 @@
 
         <div class="mb-5">
             <h2>JPEG EXIF</h2>
+            <p>A photo that is stored on its side is turned the right way up, there is nothing to ask for.</p>
             <div class="row">
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/jpeg422jfif.jpg?w=100">
-                        </p>
+                        <p><img src="/test/jpeg422jfif.jpg?w=100"></p>
                         <h5 class="card-title">Normal</h5>
                         <code>/test/jpeg422jfif.jpg?w=100</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/rotate90.jpg?w=100">
-                        </p>
+                        <p><img src="/test/rotate90.jpg?w=100"></p>
                         <h5 class="card-title">EXIF 90</h5>
                         <code>/test/rotate90.jpg?w=100</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/rotate180.jpg?w=100">
-                        </p>
+                        <p><img src="/test/rotate180.jpg?w=100"></p>
                         <h5 class="card-title">EXIF 180</h5>
                         <code>/test/rotate180.jpg?w=100</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
                 <div class="card m-2" style="width: 18rem;">
                     <div class="card-body text-center">
-                        <p>
-                            <img src="/test/rotate270.jpg?w=100">
-                        </p>
+                        <p><img src="/test/rotate270.jpg?w=100"></p>
                         <h5 class="card-title">EXIF 270</h5>
                         <code>/test/rotate270.jpg?w=100</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -281,6 +413,12 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&a=top"></p>
                         <h5 class="card-title">Zoom Anchored To Top</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&m=zoom&a=top</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Anchor(ImageAnchor.Top)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -289,6 +427,12 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&fx=0.5&fy=0.85"></p>
                         <h5 class="card-title">Zoom On A Focal Point</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&m=zoom&fx=0.5&fy=0.85</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .FocalPoint(0.5, 0.85)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -297,6 +441,10 @@
                         <p><img src="/test/thumbsUp.jpg?crop=800,900,1500,1500&w=100"></p>
                         <h5 class="card-title">Crop</h5>
                         <code>/test/thumbsUp.jpg?crop=800,900,1500,1500&w=100</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Crop(800, 900, 1500, 1500)
+    .Width(100)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -305,6 +453,12 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=fit&bg=336699"></p>
                         <h5 class="card-title">Fit With Background</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&m=fit&bg=336699</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Fit)
+    .BackgroundColor("336699")
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -313,6 +467,14 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&h=100&m=zoom&s=circle&bg=ffffff&f=jpeg"></p>
                         <h5 class="card-title">Circle As Jpeg With Background</h5>
                         <code>/test/thumbsUp.jpg?w=100&h=100&m=zoom&s=circle&bg=ffffff&f=jpeg</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Height(100)
+    .Mode(ImageMode.Zoom)
+    .Shape(ImageShape.Circle)
+    .BackgroundColor("ffffff")
+    .Format(SKEncodedImageFormat.Jpeg)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -321,6 +483,10 @@
                         <p><img src="/test/logo.png?w=400&upscale=false"></p>
                         <h5 class="card-title">Never Enlarged</h5>
                         <code>/test/logo.png?w=400&upscale=false</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(400)
+    .AllowUpscale(false)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -334,6 +500,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&rotate=90"></p>
                         <h5 class="card-title">Rotate 90</h5>
                         <code>/test/thumbsUp.jpg?w=100&rotate=90</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Rotate(90)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -342,6 +512,11 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&rotate=30&f=png"></p>
                         <h5 class="card-title">Rotate Any Angle</h5>
                         <code>/test/thumbsUp.jpg?w=100&rotate=30&f=png</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Rotate(30)
+    .Format(SKEncodedImageFormat.Png)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -350,6 +525,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&flip=h"></p>
                         <h5 class="card-title">Flip Horizontal</h5>
                         <code>/test/thumbsUp.jpg?w=100&flip=h</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .FlipHorizontal()
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -358,6 +537,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&flip=v"></p>
                         <h5 class="card-title">Flip Vertical</h5>
                         <code>/test/thumbsUp.jpg?w=100&flip=v</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .FlipVertical()
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -371,6 +554,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&blur=4"></p>
                         <h5 class="card-title">Blur</h5>
                         <code>/test/thumbsUp.jpg?w=100&blur=4</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Blur(4)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -379,6 +566,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&sharpen=1"></p>
                         <h5 class="card-title">Sharpen</h5>
                         <code>/test/thumbsUp.jpg?w=100&sharpen=1</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Sharpen(1)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -387,6 +578,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&brightness=1.4"></p>
                         <h5 class="card-title">Brightness</h5>
                         <code>/test/thumbsUp.jpg?w=100&brightness=1.4</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Brightness(1.4)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -395,6 +590,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&contrast=1.6"></p>
                         <h5 class="card-title">Contrast</h5>
                         <code>/test/thumbsUp.jpg?w=100&contrast=1.6</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Contrast(1.6)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -403,6 +602,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&saturation=2"></p>
                         <h5 class="card-title">Saturation</h5>
                         <code>/test/thumbsUp.jpg?w=100&saturation=2</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Saturation(2)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -411,6 +614,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&sepia=true"></p>
                         <h5 class="card-title">Sepia</h5>
                         <code>/test/thumbsUp.jpg?w=100&sepia=true</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .IsSepia()
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -419,6 +626,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&invert=true"></p>
                         <h5 class="card-title">Invert</h5>
                         <code>/test/thumbsUp.jpg?w=100&invert=true</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .IsInverted()
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -427,6 +638,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&pixelate=8"></p>
                         <h5 class="card-title">Pixelate</h5>
                         <code>/test/thumbsUp.jpg?w=100&pixelate=8</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Pixelate(8)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -435,6 +650,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=100&vignette=0.8"></p>
                         <h5 class="card-title">Vignette</h5>
                         <code>/test/thumbsUp.jpg?w=100&vignette=0.8</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(100)
+    .Vignette(0.8)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>
@@ -448,6 +667,14 @@
                         <p><img src="/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=Hello&fs=24&ta=bottomleft"></p>
                         <h5 class="card-title">Text Size And Position</h5>
                         <code>/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=Hello&fs=24&ta=bottomleft</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(200)
+    .Height(150)
+    .Mode(ImageMode.Zoom)
+    .Text("Hello")
+    .FontSize(24)
+    .TextAnchor(ImageAnchor.BottomLeft)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -455,7 +682,16 @@
                     <div class="card-body text-center">
                         <p><img src="/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=The quick brown fox jumps over the lazy dog&fs=18&wrap=true"></p>
                         <h5 class="card-title">Wrapped Text</h5>
-                        <code>/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=The quick brown fox...&fs=18&wrap=true</code>
+                        <code>/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=The quick brown fox jumps over the lazy dog&fs=18&wrap=true</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(200)
+    .Height(150)
+    .Mode(ImageMode.Zoom)
+    .Text("The quick brown fox " +
+          "jumps over the lazy dog")
+    .FontSize(18)
+    .TextWrap()
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -464,6 +700,13 @@
                         <p><img src="/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=Hello&font=Georgia"></p>
                         <h5 class="card-title">Font</h5>
                         <code>/test/thumbsUp.jpg?w=200&h=150&m=zoom&t=Hello&font=Georgia</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(200)
+    .Height(150)
+    .Mode(ImageMode.Zoom)
+    .Text("Hello")
+    .FontFamily("Georgia")
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -472,6 +715,10 @@
                         <p><img src="/test/thumbsUp.jpg?w=200&q=10"></p>
                         <h5 class="card-title">Low Quality (Small File)</h5>
                         <code>/test/thumbsUp.jpg?w=200&q=10</code>
+                        <pre class="code-example"><code>await ImageProcessor.Process(image)
+    .Width(200)
+    .Quality(10)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
 
@@ -480,6 +727,12 @@
                         <p><img src="/two/deep/test.jpg?w=200"></p>
                         <h5 class="card-title">Watermark (Set In Program.cs)</h5>
                         <code>/two/deep/test.jpg?w=200</code>
+                        <pre class="code-example"><code>var logo = File.ReadAllBytes("logo.png");
+
+await ImageProcessor.Process(image)
+    .Width(200)
+    .Watermark(logo, opacity: 0.8)
+    .ToImageAsync();</code></pre>
                     </div>
                 </div>
             </div>

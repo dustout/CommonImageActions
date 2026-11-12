@@ -42,6 +42,16 @@ namespace CommonImageActions.AspNetCore.Tests
         /// </summary>
         public Task<IHost> StartAsync(params CommonImageActionSettings[] settings)
         {
+            //the disk cache is on by default and its default folder is shared by the whole
+            //process, so give every site its own unless a test chose one
+            foreach (var setting in settings)
+            {
+                if (string.IsNullOrEmpty(setting.DiskCacheLocation))
+                {
+                    setting.DiskCacheLocation = CacheLocation;
+                }
+            }
+
             return new HostBuilder()
                 .UseContentRoot(ContentRoot)
                 .ConfigureWebHost(webBuilder =>

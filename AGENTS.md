@@ -25,6 +25,7 @@ CommonImageActions.sln
 ├── CommonImageActions.Core.Benchmarks/   BenchmarkDotNet console app (net8.0)
 ├── CommonImageActions.SampleAspnetCoreProject/   Demo web app (net8.0)
 ├── Benchmark/                            LINQPad scripts + result images used in the README
+├── Samples/                              Output images shown in the README "Code Samples" section
 └── .github/workflows/                    dotnet.yml (build + test), codeql.yml (security scan)
 ```
 
@@ -164,10 +165,22 @@ Request flow in `InvokeAsync`:
    `If-None-Match` matches (or `If-Modified-Since` for local files), answer 304 with no work done.
 9. Otherwise use the disk cache if it has the file (and it is younger than `DiskCacheMaxAge`),
    or get the source (remote via one shared static `HttpClient`, virtual, or the local file)
-   and process it with `PdfProcessor` (for `.pdf`) or `ImageProcessor`. Write the cache file.
+   and process it with `PdfProcessor` (for `.pdf`) or `ImageProcessor`.
 10. For remote images the ETag is a hash of the result, checked here (saves the download only).
 11. Send `ETag`, `Last-Modified` (local files), `Cache-Control` (only when `BrowserCacheMaxAge`
     is set), `Content-Type`, `Content-Length`, call `OnPrepareResponse`, then the body (not for HEAD).
+12. Write the cache file, after the response so the caller is not kept waiting on the disk.
+
+The disk cache is **on by default** (`UseDiskCache = true`), in `<wwwroot>/cache`, limited to
+10 GB (`DiskCacheMaxSizeBytes`). Consequences to keep in mind:
+
+- It can be on somewhere that is not writable. A failed write is logged once and that folder is
+  then left alone for 5 minutes (`_diskCacheWriteFailures`), instead of failing on every request.
+- Measuring the folder and deleting old files always happens on a background task.
+- The cache key includes the library version but not the build, so while developing the library
+  an image cached before a code change is served after it. The sample app turns the cache off
+  on every path except `/cached` for that reason; tests give each `TestSite` its own cache folder.
+- Remote images are cached with nothing to notice a changed original, unless `DiskCacheMaxAge` is set.
 
 The response content type is always worked out from the first bytes of the data being sent
 (`GetContentType`), for fresh, cached and remote pass-through responses alike.
@@ -227,7 +240,15 @@ The middleware must be registered before `app.UseStaticFiles()`.
 - `Program.cs` registers one middleware per scenario: `/test`, `/user/icons`, `/logos`,
   `/profilepicture`, `/cached` (disk cache), `/two/deep` (watermark on every image), `/virtual`,
   `/remote`.
-- `wwwroot/index.html` is a demo page exercising the URL parameters.
+- `wwwroot/index.html` is a demo page exercising the URL parameters. Every card has the same
+  four parts: the image, a title, the URL, and the C# that makes the same image
+  (`<pre class="code-example">`).
+- **The README "Code Samples" section is a copy of that page.** Each card is repeated there as a
+  heading, an image, the URL and the code, and the image is the file in `/Samples` that the
+  card's URL returned (named `<section>-<title>`, in lower case with dashes). When a card is
+  added or changed, change the README entry and the image in `/Samples` to match. README image
+  links are absolute `raw.githubusercontent.com/.../master/...` URLs because the README is also
+  packed into the NuGet packages, so a new image only shows once it is on `master`.
 - `wwwroot/test/` holds sample inputs (EXIF-rotated JPEGs, chroma-subsampling variants, PDFs).
   It also holds `logo.png`, which is packed as the NuGet icon, and the images the README links to
   on GitHub, so do not rename or move those files.
