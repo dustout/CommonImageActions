@@ -74,6 +74,20 @@ namespace CommonImageActions.Pdf
             return await ProcessHelperAsync(imageData, actions).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Render a page of a pdf from one stream and write the resulting image to another.
+        /// </summary>
+        public async static Task ProcessPdfAsync(Stream imageStream, Stream outputStream, ImageActions actions)
+        {
+            if (outputStream == null)
+            {
+                throw new ArgumentNullException(nameof(outputStream));
+            }
+
+            var result = await ProcessPdfAsync(imageStream, actions).ConfigureAwait(false);
+            await outputStream.WriteAsync(result, 0, result.Length).ConfigureAwait(false);
+        }
+
         internal static async Task<byte[]> ProcessHelperAsync(byte[] pdfData, ImageActions actions)
         {
             if (actions == null)

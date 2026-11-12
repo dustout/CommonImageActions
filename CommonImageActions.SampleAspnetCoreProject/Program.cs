@@ -72,10 +72,16 @@ app.UseCommonImageActions(
     }
 );
 
+//every image in this folder has the logo drawn in its corner
 app.UseCommonImageActions(
     new CommonImageActionSettings()
     {
-        PathToWatch = "/two/deep"
+        PathToWatch = "/two/deep",
+        DefaultImageActions = new ImageActions()
+        {
+            WatermarkImage = File.ReadAllBytes(Path.Join(_env.WebRootPath, "test", "logo.png")),
+            WatermarkOpacity = 0.8
+        }
     }
 );
 

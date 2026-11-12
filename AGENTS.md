@@ -44,9 +44,14 @@ So the AspNetCore package always pulls in Pdf and Core; Core has no knowledge of
 | --- | --- |
 | `ImageProcessor.cs` | Static entry point and the whole rendering pipeline. |
 | `ImageActions.cs` | Plain options object describing what to do to an image. Every property is nullable; null means "not requested". |
-| `ImageActionQueryBuilder.cs` | Fluent wrapper around `ImageActions` (`ImageProcessor.Process(bytes).Width(100)...ToImageAsync()`). |
+| `ImageActionsBuilder.cs` | Generic base class holding every fluent option method (`Width`, `Crop`, `Rotate`, `Blur`, ...). Both builders inherit it, so they always offer the same options. |
+| `ImageActionQueryBuilder.cs` | Fluent builder for images (`ImageProcessor.Process(bytes).Width(100)...ToImageAsync()`). Only holds the image data and the `ToImage`/`ToImageAsync`/`ToStreamAsync` methods. |
 | `ImageMode.cs` | `Max`, `Fit`, `Zoom`, `Stretch` (Stretch is the default when mode is null). |
 | `ImageShape.cs` | `Circle`, `Ellipse`, `RoundedRectangle`. |
+| `ImageAnchor.cs` | Nine positions (`Center`, `Top`, `BottomRight`, ...). Used for zoom/fit placement, text and watermarks. |
+| `ImageResampler.cs` | `NearestNeighbor`, `Bilinear`, `Mipmap`, `Bicubic`. Maps onto Skia's `SKFilterQuality`. |
+| `ImageDetails.cs` | Result of `ImageProcessor.Identify` (size, format, orientation, frame count). |
+| `JpegMetadata.cs` | Internal. Copies the EXIF/XMP/IPTC segments of a source JPEG into an output JPEG for `KeepMetadata`, resetting the orientation tag. |
 | `ImageProcessorException.cs` | Thrown when decoding/encoding fails. |
 
 Flow inside `ImageProcessor`:
@@ -58,12 +63,40 @@ Flow inside `ImageProcessor`:
    "virtual" image, creates a 100x100 solid-colour bitmap. An image is treated as virtual when the
    caller says so, or when `ImageColor` or `ChooseImageColorFromTextValue` is set.
 3. `EncodeSkiaImage` (public, also called by the Pdf package) does everything else, in this order:
-   copy the actions, work out the displayed size from the EXIF orientation, resolve width/height,
-   apply `Max` mode, clip to shape, draw the image according to mode (turned for EXIF, with
-   optional grayscale colour filter), draw text/initials, pick the output format, encode.
-   Drawing is recorded through an `SKPictureRecorder` and rasterised once.
+   1. Copy the actions.
+   2. Work out the **source** size: EXIF orientation, then crop, then the box a rotation needs.
+   3. Resolve width/height, apply `Max` mode, then `AllowUpscale = false`.
+   4. Paint the background colour, then clip to the shape.
+   5. Place the picture (`GetScaledRect`: mode, anchor, focal point) and draw it (`DrawSource`:
+      crop, flip, rotate, EXIF) with the colour-matrix filter and resampler on the paint.
+   6. Vignette, then text (`DrawText`), then watermark (`DrawWatermark`).
+   7. Pick the output format and quality, encode.
+
+   Drawing is recorded through an `SKPictureRecorder` and rasterised once. `ProcessHelperAsync`
+   then splices in the source metadata if `KeepMetadata` is set.
 
 Things to know about that pipeline:
+
+- **Order of geometry is fixed:** EXIF orientation, crop, flip, rotate, resize. Crop values are in
+  pixels of the displayed (EXIF-oriented) original.
+- **Colour changes are one matrix.** `GetColorMatrix` multiplies saturation, grayscale, sepia,
+  brightness, contrast and invert (in that order) into a single 4x5 matrix. The fifth column is
+  in 0 to 1 units, not 0 to 255.
+- **Blur and sharpen need an intermediate surface.** Skia's CPU blur treats everything outside
+  the layer as transparent, which fades the edges. So the picture is drawn to an output-sized
+  raster surface and repainted through the filter as an edge-clamped shader. This is the only
+  path that allocates a full raster of the output; everything else stays in the recorded picture.
+  Pixelate uses a small surface (output size divided by the block size).
+- **Pixels are decoded into sRGB** (`DecodeBitmap`). Without that a wide-gamut photo (Display P3)
+  has its numbers read as sRGB and comes out washed out. Output carries no colour profile.
+- **Metadata is dropped by default.** `KeepMetadata` only works JPEG to JPEG, because Skia cannot
+  write metadata and the segments are copied at the byte level.
+- **Fonts:** text uses `FontFamily` (default Arial). `ImageProcessor.RegisterFont` keeps a
+  typeface in a static dictionary for the life of the process; registered typefaces are shared
+  and must not be disposed, system ones are looked up and disposed per image.
+- **Skia limits that cannot be worked around:** only Nearest/Bilinear/Mipmap/Bicubic resampling
+  (no Lanczos in 2.88), no animated output (only the first frame of a GIF is read), and no
+  TIFF or TGA support.
 
 - Sizes are calculated from the **displayed** size. A photo stored as 2048x1536 with an EXIF
   quarter turn is treated as 1536x2048. `DrawImageWithOrientation` handles all eight EXIF
@@ -78,12 +111,15 @@ Things to know about that pipeline:
 Global tunables are public static fields on `ImageProcessor`: `JpegQuality`, `GifQuality`,
 `CornerRadius`, `BackgroundColours` (the palette used for `ChooseImageColorFromTextValue`).
 
+Other public entry points: `Identify` (size and format from the header, no decode),
+`RegisterFont`, and stream-to-stream `ProcessImageAsync(input, output, actions)`.
+
 ### CommonImageActions.Pdf
 
 | File | Role |
 | --- | --- |
 | `PdfProcessor.cs` | Loads the PDF with PDFium, renders one page to a BGRA bitmap, lets Skia read that buffer in place (`SKImage.FromPixels`, no copy), then hands it to `ImageProcessor.EncodeSkiaImage`. |
-| `PdfActionQueryBuilder.cs` | Fluent wrapper, mirrors `ImageActionQueryBuilder` (it is a separate class, not a subclass). |
+| `PdfActionQueryBuilder.cs` | Fluent builder for PDFs. Inherits `ImageActionsBuilder<T>` from Core, so it has every option the image builder has. |
 | `PdfProcessorException.cs` | Thrown when the PDF cannot be loaded or has no pages. |
 
 PDF-specific options live on the shared `ImageActions` class (`Page`, 1-based, and `PdfPassword`).
@@ -98,34 +134,50 @@ The PDFium bitmap must stay alive until `EncodeSkiaImage` returns, because Skia 
 
 | File | Role |
 | --- | --- |
-| `CommonImageActionsMiddlewareExtensions.cs` | `app.UseCommonImageActions(settings)`. Each call registers one middleware instance for one watched path. |
-| `CommonImageActionSettings.cs` | Per-instance settings (`PathToWatch`, `IsVirtual`, `RemoteFileServerUrl`, `UseDiskCache`, `DiskCacheLocation`, `DefaultImageActions`, `UseFileNameAsText`) plus process-wide statics (`MaxUrlWidth`, `MaxUrlHeight`, `ValidImageExtensions`, `DefaultDiskCacheLocation`). |
-| `CommonImageActionsMiddleware.cs` | Request handling and query-string parsing. |
+| `CommonImageActionsMiddlewareExtensions.cs` | `app.UseCommonImageActions(settings)`; each call registers one middleware instance for one watched path. Also `services.AddCommonImageActions(...)`, which registers the settings used when `UseCommonImageActions()` is called with none. |
+| `CommonImageActionSettings.cs` | Per-instance settings (`PathToWatch`, `IsVirtual`, `RemoteFileServerUrl`, `UseFileNameAsText`, `DefaultImageActions`, the disk cache settings, `BrowserCacheMaxAge`, `SigningKey`, and the `OnActionsParsed`/`OnPrepareResponse` hooks) plus process-wide statics (`MaxUrlWidth`, `MaxUrlHeight`, `ValidImageExtensions`, `DefaultDiskCacheLocation`). |
+| `CommonImageActionsMiddleware.cs` | Request handling, query-string parsing, HTTP caching. |
+| `CommonImageActionsUrlSigner.cs` | Public. Creates and checks the HMAC-SHA256 `sig` parameter for signed urls. |
+| `DiskCache.cs` | Internal. Reads and writes cached files (written to a temp name, then renamed), honours `DiskCacheMaxAge`, and trims the folder to `DiskCacheMaxSizeBytes`. |
 
 Request flow in `InvokeAsync`:
 
 1. Pass through unless the request is a GET or HEAD, the path starts with `PathToWatch`, and it
    ends in one of `ValidImageExtensions`.
-2. Build `ImageActions` from `DefaultImageActions` + the query string
+2. If `SigningKey` is set and the request has a query string, the signature must be valid or
+   the response is 403. A request with no query string needs no signature.
+3. Build `ImageActions` from `DefaultImageActions` + the query string
    (`ConvertQueryStringToImageActions`, public static, holds the long/short parameter names).
-   A query value only replaces a default when it is present in the url. Widths and heights that
-   are zero, negative or above `MaxUrlWidth`/`MaxUrlHeight` are ignored.
-3. With `UseFileNameAsText`, the file name becomes the text unless the url has its own `text`.
-4. If disk cache is on and a cached file exists, stream it and stop. The cache file name
-   (`GetCacheFileName`) is a SHA-256 of the request path plus the resolved image actions, so
-   `?w=50`, `?width=50` and `?w=50&unknown=1` share one file. There is no expiry, invalidation
-   or size limit.
-5. Pick a source: remote server (`RemoteFileServerUrl`, fetched with one shared static
-   `HttpClient`), virtual (`IsVirtual`), or a local file under `<ContentRootPath>/wwwroot`.
+   A query value only replaces a default when it is present in the url. Every numeric parameter
+   has an allowed range (`TryGetNumber`); a value outside it is ignored, not clamped.
+4. With `UseFileNameAsText`, the file name becomes the text unless the url has its own `text`.
+5. Call `OnActionsParsed`, which may change the actions.
 6. For local files, `GetLocalFilePath` resolves the decoded request path with `Path.GetFullPath`
    and returns null if it lands outside the web root. Fall through to the next middleware when
    it is null, the file is missing, or `ImageActions.HasAnyActions()` is false, so plain
    requests are served by `UseStaticFiles`.
-7. Process via `PdfProcessor` (for `.pdf`) or `ImageProcessor`, write the response, then write the
-   cache file if enabled.
+7. Work out the cache file name (`GetCacheFileName`): a SHA-256 of the request path, the source
+   file's last-write time and size, the library version, `JpegQuality`, and **every public
+   property of `ImageActions`** (read by reflection). So `?w=50`, `?width=50` and
+   `?w=50&unknown=1` share one name, and replacing the source file changes it.
+8. For local and virtual images the ETag is the first 32 characters of that name. If the request's
+   `If-None-Match` matches (or `If-Modified-Since` for local files), answer 304 with no work done.
+9. Otherwise use the disk cache if it has the file (and it is younger than `DiskCacheMaxAge`),
+   or get the source (remote via one shared static `HttpClient`, virtual, or the local file)
+   and process it with `PdfProcessor` (for `.pdf`) or `ImageProcessor`. Write the cache file.
+10. For remote images the ETag is a hash of the result, checked here (saves the download only).
+11. Send `ETag`, `Last-Modified` (local files), `Cache-Control` (only when `BrowserCacheMaxAge`
+    is set), `Content-Type`, `Content-Length`, call `OnPrepareResponse`, then the body (not for HEAD).
 
 The response content type is always worked out from the first bytes of the data being sent
 (`GetContentType`), for fresh, cached and remote pass-through responses alike.
+
+Signed urls: what is signed is the unescaped path (including `PathBase`) plus the raw query
+string before `&sig=`. The signature must be the last parameter. Changing how either side builds
+that string breaks every url already written into pages.
+
+Errors are logged through `ILogger` (resolved from an optional `ILoggerFactory` constructor
+argument), falling back to `Console.WriteLine` when there is no logging.
 
 Work with `context.Request.Path.Value` (already decoded) when touching path handling. Do not
 rebuild a `Uri` from the request: that re-escapes the path, which is why file names with spaces
@@ -141,17 +193,22 @@ The middleware must be registered before `app.UseStaticFiles()`.
   `CommonImageActions.Core.Tests/TestImages/` and `CommonImageActions.Pdf.Tests/TestData/`.
   To add an asset, add the file and a `ResXFileRef` entry, and update `Resources.Designer.cs`.
 - `CommonImageActions.Core.Tests/TestHelpers.cs` has `IsImage`, `CreateImage` (a solid colour
-  image of a given size and format), `GetImageInfo` (size and format of a result) and
+  image of a given size and format), `CreateQuadrantImage` (four coloured blocks, so a test can
+  tell what a crop, flip or rotation did), `GetImageInfo`, `GetPixel`, `AssertColor` and
   `LoadTestImage`. The Pdf and AspNetCore test projects reference the Core test project to
   reuse them.
+- Two tests use reflection over `ImageActions` so a new property cannot be half-added:
+  `CopyConstructor_ShouldCopyEveryProperty` and `GetCacheFileName_ShouldChange_WhenAnyPropertyChanges`.
+  A property of a new type needs a sample value added to `TestHelpers.CreateValue`.
+- Text tests return early when no text was drawn, so they pass on a machine with no fonts.
 - The EXIF test photos (`rotate90.jpg`, `rotate180.jpg`) are not duplicated: the Core test
   csproj links them from the sample app's `wwwroot/test/` into the test output folder.
 - Middleware tests spin up an in-memory host with `Microsoft.AspNetCore.TestHost`.
   `CommonImageActions.AspNetCore.Tests/TestSite.cs` creates a throw-away site in the temp
   folder (with a file outside `wwwroot` for traversal tests) and can start a real Kestrel
   file server on a free local port to stand in for a remote file server.
-- The `*RegressionTests.cs` and `*RequestTests.cs` files assert sizes, formats, content types
-  and a few pixels. The older tests only check that the output decodes as an image. Nothing
+- The `*RegressionTests.cs`, `*FeatureTests.cs` and `*RequestTests.cs` files assert sizes,
+  formats, headers and individual pixels. The older tests only check that the output decodes as an image. Nothing
   compares whole images, so visual changes still need a look in the sample app.
 
 ### Benchmarks
@@ -168,7 +225,8 @@ The middleware must be registered before `app.UseStaticFiles()`.
 `CommonImageActions.SampleAspNetProject.csproj`).
 
 - `Program.cs` registers one middleware per scenario: `/test`, `/user/icons`, `/logos`,
-  `/profilepicture`, `/cached` (disk cache), `/two/deep`, `/virtual`, `/remote`.
+  `/profilepicture`, `/cached` (disk cache), `/two/deep` (watermark on every image), `/virtual`,
+  `/remote`.
 - `wwwroot/index.html` is a demo page exercising the URL parameters.
 - `wwwroot/test/` holds sample inputs (EXIF-rotated JPEGs, chroma-subsampling variants, PDFs).
   It also holds `logo.png`, which is packed as the NuGet icon, and the images the README links to
@@ -228,8 +286,8 @@ Windows.
   with the copy constructor, because one instance is routinely shared between images
   (`ProcessImagesAsync`, `DefaultImageActions`). Writing a calculated size or format back would
   apply it to the next image.
-- **The middleware reports problems with `Console.WriteLine`** (cache read/write failures); it
-  has no `ILogger` dependency.
+- **Anything a url can set must be bounded.** Give each new numeric query parameter a range in
+  `ConvertQueryStringToImageActions`, sized so that one request cannot tie up the server.
 
 ## Adding a new image action
 
@@ -237,17 +295,17 @@ A new option has to be threaded through several places. Miss one and it will wor
 point but not another.
 
 1. `CommonImageActions.Core/ImageActions.cs`: add the nullable property, copy it in the
-   `ImageActions(ImageActions defaults)` constructor, and include it in `HasAnyActions()`.
-   If it is left out of `HasAnyActions()`, a URL carrying only that parameter is passed straight
-   to static files unprocessed. If it is left out of the copy constructor it is silently dropped,
-   because `EncodeSkiaImage` and the middleware both work on copies.
+   `ImageActions(ImageActions defaults)` constructor, and include it in `HasAnyActions()` if it
+   changes the image on its own. If it is left out of `HasAnyActions()`, a URL carrying only that
+   parameter is passed straight to static files unprocessed. If it is left out of the copy
+   constructor it is silently dropped, because `EncodeSkiaImage` and the middleware both work on
+   copies (a test fails if you forget).
 2. `CommonImageActions.Core/ImageProcessor.cs`: apply it in `EncodeSkiaImage`.
-3. `CommonImageActions.Core/ImageActionQueryBuilder.cs` and
-   `CommonImageActions.Pdf/PdfActionQueryBuilder.cs`: add the fluent method to both.
+3. `CommonImageActions.Core/ImageActionsBuilder.cs`: add the fluent method. Both the image and
+   the PDF builder get it from there.
 4. `CommonImageActions.AspNetCore/CommonImageActionsMiddleware.cs`: parse the long and short
-   query-string names in `ConvertQueryStringToImageActions`, and add the property to the key in
-   `GetCacheFileName`. If it is left out of the key, requests that differ only in that option
-   are served the same cached image.
+   query-string names in `ConvertQueryStringToImageActions`, with a range for numbers. Check the
+   short name is not already taken. The cache key picks the property up by itself.
 5. `README.md`: add a row to the URL Parameters table.
 6. Add tests, and a sample to `wwwroot/index.html` in the sample app if it is visual.
 

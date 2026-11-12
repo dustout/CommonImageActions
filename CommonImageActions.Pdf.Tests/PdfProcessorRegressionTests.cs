@@ -102,6 +102,49 @@ namespace CommonImageActions.Pdf.Tests
         }
 
         [Fact]
+        public async Task FluentBuilder_ShouldOfferTheSameOptionsAsImages()
+        {
+            // Arrange
+            var pdfData = Properties.Resources.testPdf;
+
+            // Act - a quarter turn makes the portrait page landscape
+            var result = await PdfProcessor.Process(pdfData)
+                .Width(396)
+                .Rotate(90)
+                .IsInverted()
+                .BackgroundColor("ffffff")
+                .Quality(80)
+                .Format(SKEncodedImageFormat.Jpeg)
+                .ToImageAsync();
+
+            // Assert
+            var info = TestHelpers.GetImageInfo(result);
+            Assert.Equal((396, 306, SKEncodedImageFormat.Jpeg), info);
+
+            //the page is white, so inverted it is black
+            var corner = TestHelpers.GetPixel(result, 5, 5);
+            Assert.True(corner.Red < 20 && corner.Green < 20 && corner.Blue < 20, $"Expected black but was {corner}.");
+        }
+
+        [Fact]
+        public async Task ShouldWriteTheResultToAStream()
+        {
+            // Arrange
+            var pdfData = Properties.Resources.testPdf;
+            using var input = new MemoryStream(pdfData);
+            using var output = new MemoryStream();
+            using var fluentOutput = new MemoryStream();
+
+            // Act
+            await PdfProcessor.ProcessPdfAsync(input, output, new ImageActions() { Width = 100 });
+            await PdfProcessor.Process(pdfData).Width(50).ToStreamAsync(fluentOutput);
+
+            // Assert
+            Assert.Equal(100, TestHelpers.GetImageInfo(output.ToArray()).Width);
+            Assert.Equal(50, TestHelpers.GetImageInfo(fluentOutput.ToArray()).Width);
+        }
+
+        [Fact]
         public void ToImage_ShouldNotDeadlock_WhenTheThreadHasASynchronizationContext()
         {
             // Arrange

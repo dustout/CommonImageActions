@@ -2,12 +2,16 @@
 using CommonImageActions.Pdf;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SkiaSharp;
 using System;
+using System.Collections.Specialized;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,22 +21,31 @@ namespace CommonImageActions.AspNetCore
 {
     public class CommonImageActionsMiddleware
     {
-        //how many bytes from the start of a file are needed to tell what kind of image it is
-        private const int ContentTypeHeaderLength = 12;
-
         //one client for the life of the application. Creating a client per request leaves its
         //sockets behind after every call, and under load the server runs out of them
         private static readonly HttpClient _httpClient = new HttpClient();
 
+        //every option an image can have, read once. The cache key is built from all of them so
+        //that a new option can never be forgotten there
+        private static readonly PropertyInfo[] _imageActionProperties = typeof(ImageActions)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(x => x.CanRead)
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        private static readonly string _libraryVersion = typeof(ImageProcessor).Assembly.GetName().Version?.ToString();
+
         private readonly RequestDelegate _next;
         private readonly CommonImageActionSettings _options;
         private readonly IHostEnvironment _env;
+        private readonly ILogger _logger;
 
-        public CommonImageActionsMiddleware(RequestDelegate next, IOptions<CommonImageActionSettings> options, IHostEnvironment env)
+        public CommonImageActionsMiddleware(RequestDelegate next, IOptions<CommonImageActionSettings> options, IHostEnvironment env, ILoggerFactory loggerFactory = null)
         {
             _next = next;
             _options = options.Value;
             _env = env;
+            _logger = loggerFactory?.CreateLogger<CommonImageActionsMiddleware>();
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -45,9 +58,9 @@ namespace CommonImageActions.AspNetCore
             }
 
             //only requests that read an image are handled, the rest are left for the pipeline
-            var isGetOrHead = string.Equals(context.Request.Method, "GET", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(context.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
-            if (isGetOrHead == false)
+            var isHead = string.Equals(context.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
+            var isGet = string.Equals(context.Request.Method, "GET", StringComparison.OrdinalIgnoreCase);
+            if (isGet == false && isHead == false)
             {
                 await _next(context);
                 return;
@@ -71,9 +84,20 @@ namespace CommonImageActions.AspNetCore
                 var isPdf = string.Equals(imageExtension, ".pdf", StringComparison.OrdinalIgnoreCase);
                 var isRemoteServer = !string.IsNullOrEmpty(_options.RemoteFileServerUrl);
                 var isVirtual = _options.IsVirtual;
+                var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
+
+                //when urls have to be signed, a url that asks for something needs a valid signature
+                if (string.IsNullOrEmpty(_options.SigningKey) == false && string.IsNullOrEmpty(queryString) == false)
+                {
+                    var signedPath = $"{context.Request.PathBase.Value}{requestPath}";
+                    if (CommonImageActionsUrlSigner.IsValid(signedPath, queryString, _options.SigningKey) == false)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return;
+                    }
+                }
 
                 //convert query string into image actions
-                var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
                 var imageActions = ConvertQueryStringToImageActions(queryString, _options.DefaultImageActions);
                 byte[] imageData = null;
 
@@ -88,18 +112,84 @@ namespace CommonImageActions.AspNetCore
                     }
                 }
 
-                //check to see if file is in the cache, if it is then return it
-                string cachedFilePath = null;
-                if (_options.UseDiskCache)
+                //give the application the chance to look at and change what is about to be done
+                if (_options.OnActionsParsed != null)
                 {
-                    cachedFilePath = Path.Combine(GetDiskCacheLocation(webRootPath), GetCacheFileName(requestPath, imageActions));
-                    if (await TrySendCachedFileAsync(context, cachedFilePath))
+                    await _options.OnActionsParsed(context, imageActions);
+                }
+
+                //find the file when it is on this server
+                string imageFilePath = null;
+                string sourceVersion = null;
+                DateTimeOffset? lastModified = null;
+                if (isRemoteServer == false && isVirtual == false)
+                {
+                    //this is null if the request has been modified to point outside of wwwroot
+                    //(for example if someone has requested root). Let the normal flow deal with
+                    //that, and with a file that does not exist
+                    imageFilePath = GetLocalFilePath(webRootPath, requestPath);
+                    var imageFile = imageFilePath != null ? new FileInfo(imageFilePath) : null;
+                    if (imageFile == null || imageFile.Exists == false)
                     {
+                        await _next(context);
+                        return;
+                    }
+
+                    //if there are no actions to perform then let the normal flow deal with it
+                    if (imageActions.HasAnyActions() == false)
+                    {
+                        await _next(context);
+                        return;
+                    }
+
+                    //when the file was last saved and how big it is. Part of the cache key, so that
+                    //replacing the file makes everything cached from the old one be ignored
+                    sourceVersion = $"{imageFile.LastWriteTimeUtc.Ticks}-{imageFile.Length}";
+
+                    //http dates only go down to the second
+                    var lastWrite = imageFile.LastWriteTimeUtc;
+                    lastModified = new DateTimeOffset(lastWrite.Year, lastWrite.Month, lastWrite.Day, lastWrite.Hour, lastWrite.Minute, lastWrite.Second, TimeSpan.Zero);
+                }
+
+                //the same request for the same file always has this name
+                var cacheFileName = GetCacheFileName(requestPath, imageActions, sourceVersion);
+
+                //for a local or virtual image the name is all that is needed to know nothing has
+                //changed, so a browser that already has the image can be told so without any work.
+                //A remote file can change without us knowing, so that is decided once we have it
+                string etag = null;
+                if (isRemoteServer == false)
+                {
+                    etag = $"\"{cacheFileName.Substring(0, 32)}\"";
+                    if (IsNotModified(context.Request, etag, lastModified))
+                    {
+                        SendNotModified(context, etag, lastModified);
                         return;
                     }
                 }
 
-                if (isRemoteServer)
+                //check to see if file is in the cache, if it is then use it
+                string cachedFilePath = null;
+                var isFromCache = false;
+                if (_options.UseDiskCache)
+                {
+                    cachedFilePath = Path.Combine(GetDiskCacheLocation(webRootPath), cacheFileName);
+                    try
+                    {
+                        imageData = await DiskCache.TryReadAsync(cachedFilePath, _options.DiskCacheMaxAge);
+                        isFromCache = imageData != null;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError(ex, $"Error getting cached file {cachedFilePath}.");
+                    }
+                }
+
+                if (imageData != null)
+                {
+                    //already have it from the cache
+                }
+                else if (isRemoteServer)
                 {
                     //get the server path by removing the path to watch, keeping it escaped for the url
                     var serverPath = pathAfterWatchedPath.ToUriComponent().TrimStart('/');
@@ -142,23 +232,6 @@ namespace CommonImageActions.AspNetCore
                 }
                 else
                 {
-                    //find the file, this is null if the request has been modified to point outside
-                    //of wwwroot (for example if someone has requested root). Let the normal flow
-                    //deal with that, and with a file that does not exist
-                    var imageFilePath = GetLocalFilePath(webRootPath, requestPath);
-                    if (imageFilePath == null || !File.Exists(imageFilePath))
-                    {
-                        await _next(context);
-                        return;
-                    }
-
-                    //if there are no actions to perform then let the normal flow deal with it
-                    if (imageActions.HasAnyActions() == false)
-                    {
-                        await _next(context);
-                        return;
-                    }
-
                     //load the image and process it
                     using var inputStream = File.OpenRead(imageFilePath);
                     if (isPdf)
@@ -177,35 +250,58 @@ namespace CommonImageActions.AspNetCore
                     throw new NotImplementedException($"{imageExtension} not supported");
                 }
 
-                //set response type from what was actually produced
-                context.Response.ContentType = GetContentType(imageData, imageData.Length);
-
-                //send the resulting data
-                await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
-
                 //write to disk cache if enabled
-                if (cachedFilePath != null)
+                if (cachedFilePath != null && isFromCache == false)
                 {
                     try
                     {
-                        var diskCacheLocation = Path.GetDirectoryName(cachedFilePath);
-                        if (Directory.Exists(diskCacheLocation) == false)
-                        {
-                            Directory.CreateDirectory(diskCacheLocation);
-                        }
-
-                        await File.WriteAllBytesAsync(cachedFilePath, imageData);
+                        await DiskCache.WriteAsync(cachedFilePath, imageData, _options.DiskCacheMaxSizeBytes, LogError);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error writing cached file {cachedFilePath}. {ex.ToString()}");
+                        LogError(ex, $"Error writing cached file {cachedFilePath}.");
                     }
+                }
+
+                //a remote image is identified by what it turned out to be
+                if (etag == null)
+                {
+                    etag = $"\"{GetHash(imageData).Substring(0, 32)}\"";
+                    if (IsNotModified(context.Request, etag, lastModified))
+                    {
+                        SendNotModified(context, etag, lastModified);
+                        return;
+                    }
+                }
+
+                //set response type from what was actually produced
+                SetCachingHeaders(context, etag, lastModified);
+                context.Response.ContentType = GetContentType(imageData, imageData.Length);
+                context.Response.ContentLength = imageData.Length;
+                _options.OnPrepareResponse?.Invoke(context);
+
+                //send the resulting data, a HEAD request only wants to know about it
+                if (isHead == false)
+                {
+                    await context.Response.Body.WriteAsync(imageData, 0, imageData.Length);
                 }
 
                 return;
             }
             // Call the next delegate/middleware in the pipeline
             await _next(context);
+        }
+
+        private void LogError(Exception ex, string message)
+        {
+            if (_logger != null)
+            {
+                _logger.LogWarning(ex, message);
+            }
+            else
+            {
+                Console.WriteLine($"{message} {ex}");
+            }
         }
 
         private string GetDiskCacheLocation(string webRootPath)
@@ -226,43 +322,70 @@ namespace CommonImageActions.AspNetCore
             return diskCacheLocation;
         }
 
-        private static async Task<bool> TrySendCachedFileAsync(HttpContext context, string cachedFilePath)
+        /// <summary>
+        /// Has the browser told us it already has this exact image?
+        /// </summary>
+        private static bool IsNotModified(HttpRequest request, string etag, DateTimeOffset? lastModified)
         {
-            try
+            //the browser sends back the etag it was given, this is the check that counts when present
+            var ifNoneMatch = request.Headers["If-None-Match"].ToString();
+            if (string.IsNullOrEmpty(ifNoneMatch) == false)
             {
-                if (File.Exists(cachedFilePath) == false)
+                foreach (var candidate in ifNoneMatch.Split(','))
                 {
-                    return false;
-                }
-
-                using (var cachedFileStream = File.OpenRead(cachedFilePath))
-                {
-                    //the cached file has no extension, so read its first bytes to see what it is
-                    var header = new byte[ContentTypeHeaderLength];
-                    var headerLength = 0;
-                    while (headerLength < header.Length)
+                    var value = candidate.Trim();
+                    if (value == "*")
                     {
-                        var read = await cachedFileStream.ReadAsync(header, headerLength, header.Length - headerLength);
-                        if (read == 0)
-                        {
-                            break;
-                        }
-                        headerLength += read;
+                        return true;
                     }
 
-                    context.Response.ContentType = GetContentType(header, headerLength);
-                    await context.Response.Body.WriteAsync(header, 0, headerLength);
-                    await cachedFileStream.CopyToAsync(context.Response.Body);
+                    //a weak etag (W/"...") matches the same as a strong one for this purpose
+                    if (value.StartsWith("W/", StringComparison.Ordinal))
+                    {
+                        value = value.Substring(2);
+                    }
+
+                    if (string.Equals(value, etag, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
                 }
 
-                return true;
+                return false;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error getting cached file {cachedFilePath}. {ex.ToString()}");
 
-                //once part of the file has been sent the response can not be started again
-                return context.Response.HasStarted;
+            //otherwise fall back to the date the browser got its copy
+            var ifModifiedSince = request.Headers["If-Modified-Since"].ToString();
+            if (lastModified.HasValue
+                && string.IsNullOrEmpty(ifModifiedSince) == false
+                && DateTimeOffset.TryParseExact(ifModifiedSince, "r", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var since))
+            {
+                return lastModified.Value <= since;
+            }
+
+            return false;
+        }
+
+        private void SendNotModified(HttpContext context, string etag, DateTimeOffset? lastModified)
+        {
+            context.Response.StatusCode = StatusCodes.Status304NotModified;
+            SetCachingHeaders(context, etag, lastModified);
+            _options.OnPrepareResponse?.Invoke(context);
+        }
+
+        private void SetCachingHeaders(HttpContext context, string etag, DateTimeOffset? lastModified)
+        {
+            context.Response.Headers["ETag"] = etag;
+
+            if (lastModified.HasValue)
+            {
+                context.Response.Headers["Last-Modified"] = lastModified.Value.ToString("r", CultureInfo.InvariantCulture);
+            }
+
+            if (_options.BrowserCacheMaxAge.HasValue)
+            {
+                var seconds = (long)Math.Max(0, _options.BrowserCacheMaxAge.Value.TotalSeconds);
+                context.Response.Headers["Cache-Control"] = $"public, max-age={seconds}";
             }
         }
 
@@ -272,30 +395,50 @@ namespace CommonImageActions.AspNetCore
         /// url is written, and query parameters that mean nothing do not create new cache files.
         /// It is hashed so the name is always short enough to be a valid file name.
         /// </summary>
-        public static string GetCacheFileName(string requestPath, ImageActions imageActions)
+        /// <param name="sourceVersion">Something that changes when the original file changes.</param>
+        public static string GetCacheFileName(string requestPath, ImageActions imageActions, string sourceVersion = null)
         {
-            var key = string.Join("|", new[]
-            {
-                requestPath,
-                $"w={imageActions.Width}",
-                $"h={imageActions.Height}",
-                $"p={imageActions.Page}",
-                $"s={imageActions.Shape}",
-                $"cr={imageActions.CornerRadius}",
-                $"in={imageActions.AsInitials}",
-                $"ft={imageActions.ChooseImageColorFromTextValue}",
-                $"g={imageActions.IsGrayscale}",
-                $"f={imageActions.Format}",
-                $"m={imageActions.Mode}",
-                $"t={Uri.EscapeDataString(imageActions.Text ?? string.Empty)}",
-                $"tc={Uri.EscapeDataString(imageActions.TextColor ?? string.Empty)}",
-                $"c={Uri.EscapeDataString(imageActions.ImageColor ?? string.Empty)}",
-                $"pw={Uri.EscapeDataString(imageActions.PdfPassword ?? string.Empty)}",
-            });
+            var key = new StringBuilder(requestPath);
+            key.Append('|').Append(sourceVersion);
 
+            //a new version of the library can draw the same request differently, as can a change
+            //to the default jpeg quality, so neither should be answered from what was made before
+            key.Append('|').Append(_libraryVersion);
+            key.Append('|').Append(ImageProcessor.JpegQuality);
+
+            foreach (var property in _imageActionProperties)
+            {
+                var value = property.GetValue(imageActions);
+                string text;
+                if (value == null)
+                {
+                    text = string.Empty;
+                }
+                else if (value is byte[] bytes)
+                {
+                    //for example the watermark image, its hash stands in for it
+                    text = GetHash(bytes);
+                }
+                else if (value is IFormattable formattable)
+                {
+                    text = formattable.ToString(null, CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    text = value.ToString();
+                }
+
+                key.Append('|').Append(property.Name).Append('=').Append(Uri.EscapeDataString(text));
+            }
+
+            return GetHash(Encoding.UTF8.GetBytes(key.ToString()));
+        }
+
+        private static string GetHash(byte[] data)
+        {
             using (var sha256 = SHA256.Create())
             {
-                return ByteArrayToHexString(sha256.ComputeHash(Encoding.UTF8.GetBytes(key)));
+                return ByteArrayToHexString(sha256.ComputeHash(data));
             }
         }
 
@@ -422,6 +565,37 @@ namespace CommonImageActions.AspNetCore
             return query["text"] ?? query["t"];
         }
 
+        /// <summary>
+        /// Read a number from the url, only accepting it when it is inside the allowed range.
+        /// </summary>
+        private static bool TryGetNumber(NameValueCollection query, string name, string shortName, double min, double max, out double value)
+        {
+            var text = query[name] ?? query[shortName];
+            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+                && double.IsNaN(value) == false
+                && value >= min
+                && value <= max)
+            {
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+        private static bool TryGetBoolean(NameValueCollection query, string name, string shortName, out bool value)
+        {
+            return Boolean.TryParse(query[name] ?? query[shortName], out value);
+        }
+
+        /// <summary>
+        /// Read a named value from the url, ignoring numbers that are not one of the names.
+        /// </summary>
+        private static bool TryGetEnum<T>(string text, out T value) where T : struct
+        {
+            return Enum.TryParse<T>(text, true, out value) && Enum.IsDefined(typeof(T), value);
+        }
+
         public static ImageActions ConvertQueryStringToImageActions(string queryString, ImageActions defaultImageActions = null)
         {
             //initialize image actions
@@ -542,6 +716,157 @@ namespace CommonImageActions.AspNetCore
                 {
                     imageActions.Mode = ImageMode.Zoom;
                 }
+            }
+
+            //encoding
+            if (TryGetNumber(query, "quality", "q", 1, 100, out var quality))
+            {
+                imageActions.Quality = (int)quality;
+            }
+
+            if (TryGetBoolean(query, "metadata", "md", out var keepMetadata))
+            {
+                imageActions.KeepMetadata = keepMetadata;
+            }
+
+            //which part of the image is used and where it is placed
+            if (TryGetEnum<ImageAnchor>(query["anchor"] ?? query["a"], out var anchor))
+            {
+                imageActions.Anchor = anchor;
+            }
+
+            if (TryGetNumber(query, "focalX", "fx", 0, 1, out var focalX))
+            {
+                imageActions.FocalPointX = focalX;
+            }
+
+            if (TryGetNumber(query, "focalY", "fy", 0, 1, out var focalY))
+            {
+                imageActions.FocalPointY = focalY;
+            }
+
+            if (TryGetBoolean(query, "upscale", "u", out var allowUpscale))
+            {
+                imageActions.AllowUpscale = allowUpscale;
+            }
+
+            var resamplerString = query["resampler"] ?? query["rs"];
+            if (string.Equals(resamplerString, "nearest", StringComparison.OrdinalIgnoreCase))
+            {
+                imageActions.Resampler = ImageResampler.NearestNeighbor;
+            }
+            else if (TryGetEnum<ImageResampler>(resamplerString, out var resampler))
+            {
+                imageActions.Resampler = resampler;
+            }
+
+            //crop is four whole numbers: left, top, width, height
+            var cropString = query["crop"];
+            if (cropString != null)
+            {
+                var parts = cropString.Split(',');
+                if (parts.Length == 4
+                    && int.TryParse(parts[0], out var cropX) && cropX >= 0
+                    && int.TryParse(parts[1], out var cropY) && cropY >= 0
+                    && int.TryParse(parts[2], out var cropWidth) && cropWidth > 0
+                    && int.TryParse(parts[3], out var cropHeight) && cropHeight > 0)
+                {
+                    imageActions.CropX = cropX;
+                    imageActions.CropY = cropY;
+                    imageActions.CropWidth = cropWidth;
+                    imageActions.CropHeight = cropHeight;
+                }
+            }
+
+            if (TryGetNumber(query, "rotate", "r", -360000, 360000, out var rotate))
+            {
+                imageActions.Rotate = rotate;
+            }
+
+            //flip is h, v or both
+            var flipString = (query["flip"] ?? query["fl"])?.ToLowerInvariant();
+            if (flipString == "h" || flipString == "horizontal" || flipString == "both" || flipString == "hv" || flipString == "vh")
+            {
+                imageActions.FlipHorizontal = true;
+            }
+
+            if (flipString == "v" || flipString == "vertical" || flipString == "both" || flipString == "hv" || flipString == "vh")
+            {
+                imageActions.FlipVertical = true;
+            }
+
+            var backgroundString = query["background"] ?? query["bg"];
+            if (backgroundString != null)
+            {
+                imageActions.BackgroundColor = backgroundString;
+            }
+
+            //text layout
+            var fontString = query["font"] ?? query["fn"];
+            if (fontString != null)
+            {
+                imageActions.FontFamily = fontString;
+            }
+
+            if (TryGetNumber(query, "fontSize", "fs", 1, CommonImageActionSettings.MaxUrlHeight, out var fontSize))
+            {
+                imageActions.FontSize = (int)fontSize;
+            }
+
+            if (TryGetEnum<ImageAnchor>(query["textAnchor"] ?? query["ta"], out var textAnchor))
+            {
+                imageActions.TextAnchor = textAnchor;
+            }
+
+            if (TryGetBoolean(query, "wrap", "tw", out var textWrap))
+            {
+                imageActions.TextWrap = textWrap;
+            }
+
+            //filters, each limited to a range that is useful and can not be used to tie up the server
+            if (TryGetBoolean(query, "sepia", "se", out var isSepia))
+            {
+                imageActions.IsSepia = isSepia;
+            }
+
+            if (TryGetBoolean(query, "invert", "inv", out var isInverted))
+            {
+                imageActions.IsInverted = isInverted;
+            }
+
+            if (TryGetNumber(query, "brightness", "br", 0, 10, out var brightness))
+            {
+                imageActions.Brightness = brightness;
+            }
+
+            if (TryGetNumber(query, "contrast", "co", 0, 10, out var contrast))
+            {
+                imageActions.Contrast = contrast;
+            }
+
+            if (TryGetNumber(query, "saturation", "sa", 0, 10, out var saturation))
+            {
+                imageActions.Saturation = saturation;
+            }
+
+            if (TryGetNumber(query, "blur", "bl", 0, 100, out var blur))
+            {
+                imageActions.Blur = blur;
+            }
+
+            if (TryGetNumber(query, "sharpen", "sh", 0, 10, out var sharpen))
+            {
+                imageActions.Sharpen = sharpen;
+            }
+
+            if (TryGetNumber(query, "pixelate", "px", 2, CommonImageActionSettings.MaxUrlWidth, out var pixelate))
+            {
+                imageActions.Pixelate = (int)pixelate;
+            }
+
+            if (TryGetNumber(query, "vignette", "v", 0, 1, out var vignette))
+            {
+                imageActions.Vignette = vignette;
             }
 
             return imageActions;
