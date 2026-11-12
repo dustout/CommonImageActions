@@ -1,5 +1,7 @@
 ﻿using CommonImageActions.Core;
+using Microsoft.AspNetCore.Http;
 using System;
+using System.Threading.Tasks;
 
 namespace CommonImageActions.AspNetCore
 {
@@ -15,13 +17,16 @@ namespace CommonImageActions.AspNetCore
 
             set
             {
-                if (value == "/" || value == null)
+                //no path, or only slashes, means every path is watched. This is kept as an empty
+                //string because a single slash would only match the root of the site
+                var path = value?.Trim('/');
+                if (string.IsNullOrEmpty(path))
                 {
                     this._pathToWatch = String.Empty;
                 }
                 else
                 {
-                    this._pathToWatch = $"/{value.TrimStart('/').TrimEnd('/')}";
+                    this._pathToWatch = $"/{path}";
                 }
             }
         }
@@ -32,13 +37,71 @@ namespace CommonImageActions.AspNetCore
 
         public bool UseFileNameAsText { get; set; }
 
-        public bool UseDiskCache { get; set; }
+        /// <summary>
+        /// The disk cache size that is used unless <see cref="DiskCacheMaxSizeBytes"/> is changed: 10 gigabytes.
+        /// </summary>
+        public const long DefaultDiskCacheMaxSizeBytes = 10L * 1024 * 1024 * 1024;
 
+        /// <summary>
+        /// Keep each image that is made on disk, and send that copy the next time the same image
+        /// is asked for. On unless it is set to false.
+        /// </summary>
+        public bool UseDiskCache { get; set; } = true;
+
+        /// <summary>
+        /// The folder the cached images are kept in. It has to be writable. When not set it is
+        /// <see cref="DefaultDiskCacheLocation"/>, which is the cache folder inside wwwroot.
+        /// </summary>
         public string DiskCacheLocation { get; set; }
+
+        /// <summary>
+        /// How long a file in the disk cache is used before the image is made again.
+        /// Cached files are kept forever when not set.
+        /// </summary>
+        public TimeSpan? DiskCacheMaxAge { get; set; }
+
+        /// <summary>
+        /// The most disk space, in bytes, the disk cache is allowed to use. When it grows past this
+        /// the oldest files are deleted. 10 gigabytes unless changed, set it to null for no limit.
+        /// </summary>
+        public long? DiskCacheMaxSizeBytes { get; set; } = DefaultDiskCacheMaxSizeBytes;
+
+        /// <summary>
+        /// How long a browser or CDN may reuse an image without asking the server again. Sent as
+        /// the Cache-Control max-age header. When not set the header is not sent, and browsers
+        /// check back with the server (which answers 304 Not Modified when nothing has changed).
+        /// </summary>
+        public TimeSpan? BrowserCacheMaxAge { get; set; }
+
+        /// <summary>
+        /// When set, a url with a query string is only processed if it ends with a valid signature
+        /// made with this key (see <see cref="CommonImageActionsUrlSigner"/>). This stops anyone
+        /// but your own site from asking for images in sizes of their choosing.
+        /// </summary>
+        public string SigningKey { get; set; }
 
         public ImageActions DefaultImageActions { get; set; }
 
+        /// <summary>
+        /// Called after the url has been turned into image actions and before anything is done
+        /// with them. The actions can be changed here, for example to limit sizes or add a watermark.
+        /// </summary>
+        public Func<HttpContext, ImageActions, Task> OnActionsParsed { get; set; }
+
+        /// <summary>
+        /// Called just before an image is sent, after the status code and headers have been set.
+        /// Headers can be added or changed here.
+        /// </summary>
+        public Action<HttpContext> OnPrepareResponse { get; set; }
+
         public static string DefaultDiskCacheLocation { get; set; }
+
+        /// <summary>
+        /// How long the disk cache is left alone after writing to it has failed, before it is
+        /// tried again. This keeps a cache folder that can not be written to from failing (and
+        /// logging) on every request. 5 minutes unless changed.
+        /// </summary>
+        public static TimeSpan DiskCacheRetryInterval { get; set; } = TimeSpan.FromMinutes(5);
 
         public static int MaxUrlWidth { get; set; } = 5000;
 

@@ -12,7 +12,14 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    # The library is used on both, and they differ where it matters: how file paths work
+    # (the checks that stop a request reaching outside of wwwroot), and how fonts are drawn.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4

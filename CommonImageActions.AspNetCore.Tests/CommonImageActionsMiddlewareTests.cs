@@ -54,5 +54,48 @@ namespace CommonImageActions.AspNetCore.Tests
             var isImage = TestHelpers.IsImage(content);
             Assert.True(isImage, "The result is not a valid image.");
         }
+
+        [Fact]
+        public void ConvertQueryString_ShouldIgnoreHeightOverMax_WhenWidthIsNotSet()
+        {
+            var tooTall = CommonImageActionSettings.MaxUrlHeight + 1;
+
+            var actions = CommonImageActionsMiddleware.ConvertQueryStringToImageActions($"?h={tooTall}");
+
+            Assert.Null(actions.Height);
+        }
+
+        [Fact]
+        public void ConvertQueryString_ShouldKeepValidHeight_WhenWidthIsOverMax()
+        {
+            var tooWide = CommonImageActionSettings.MaxUrlWidth + 1;
+
+            var actions = CommonImageActionsMiddleware.ConvertQueryStringToImageActions($"?w={tooWide}&h=100");
+
+            Assert.Null(actions.Width);
+            Assert.Equal(100, actions.Height);
+        }
+
+        [Fact]
+        public void ConvertQueryString_ShouldReportAnAction_WhenOnlyGrayscaleIsRequested()
+        {
+            var actions = CommonImageActionsMiddleware.ConvertQueryStringToImageActions("?g=true");
+
+            Assert.True(actions.IsGrayscale);
+            Assert.True(actions.HasAnyActions());
+        }
+
+        [Fact]
+        public void ConvertQueryString_ShouldCarryOverDefaultGrayscale()
+        {
+            var defaults = new ImageActions()
+            {
+                IsGrayscale = true
+            };
+
+            var actions = CommonImageActionsMiddleware.ConvertQueryStringToImageActions(string.Empty, defaults);
+
+            Assert.True(actions.IsGrayscale);
+        }
     }
 }

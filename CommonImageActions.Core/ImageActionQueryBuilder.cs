@@ -1,46 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace CommonImageActions.Core
 {
-    public class ImageActionQueryBuilder
+    public class ImageActionQueryBuilder : ImageActionsBuilder<ImageActionQueryBuilder>
     {
-        private ImageActions _actions { get; set; }
         private byte[] _imageData { get; set; }
         private bool _isVirtual { get; set; } = false;
 
-        public ImageActionQueryBuilder(byte[] imageData, ImageActions actions)
+        public ImageActionQueryBuilder(byte[] imageData, ImageActions actions) : base(actions)
         {
             _imageData = imageData;
-
-            if(actions == null)
-            {
-                _actions = new ImageActions();
-            }
-            else
-            {
-                _actions = actions;
-            }
         }
 
-        public ImageActionQueryBuilder(byte[] imageData)
+        public ImageActionQueryBuilder(byte[] imageData) : base(null)
         {
             _imageData = imageData;
-            _actions = new ImageActions();
         }
 
-        public ImageActionQueryBuilder()
+        public ImageActionQueryBuilder() : base(null)
         {
             _isVirtual = true;
-            _actions = new ImageActions();
-        }
-
-        public ImageActionQueryBuilder Width (int width)
-        {
-            _actions.Width = width;
-            return this;
         }
 
         public ImageActionQueryBuilder IsVirtual(bool isVirtual)
@@ -49,97 +32,30 @@ namespace CommonImageActions.Core
             return this;
         }
 
-        public ImageActionQueryBuilder Shape(ImageShape shape)
-        {
-            _actions.Shape = shape;
-            return this;
-        }
-
-        public ImageActionQueryBuilder CornerRadius(int cornerRadius)
-        {
-            _actions.CornerRadius = cornerRadius;
-            return this;
-        }
-
-        public ImageActionQueryBuilder Text(string text)
-        {
-            _actions.Text = text;
-            return this;
-        }
-
-        public ImageActionQueryBuilder IsGrayscale(bool isGrayscale)
-        {
-            _actions.IsGrayscale = isGrayscale;
-            return this;
-        }
-
-        public ImageActionQueryBuilder AsInitials(bool asInitials)
-        {
-            _actions.AsInitials = asInitials;
-            return this;
-        }
-
-        public ImageActionQueryBuilder TextColor(string textColor)
-        {
-            _actions.TextColor = textColor;
-            return this;
-        }
-
-        public ImageActionQueryBuilder ImageColor(string imageColor)
-        {
-            _actions.ImageColor = imageColor;
-            return this;
-        }
-
-        public ImageActionQueryBuilder ChooseImageColorFromTextValue(bool chooseImageColorFromTextValue)
-        {
-            _actions.ChooseImageColorFromTextValue = chooseImageColorFromTextValue;
-            return this;
-        }
-
-        public ImageActionQueryBuilder Format(SkiaSharp.SKEncodedImageFormat format)
-        {
-            _actions.Format = format;
-            return this;
-        }
-
-        public ImageActionQueryBuilder Mode(ImageMode mode)
-        {
-            _actions.Mode = mode;
-            return this;
-        }
-
-        public ImageActionQueryBuilder PdfPassword(string pdfPassword)
-        {
-            _actions.PdfPassword = pdfPassword;
-            return this;
-        }
-
-        public ImageActionQueryBuilder Page(string page)
-        {
-            _actions.Page = int.Parse(page);
-            return this;
-        }
-
-        public ImageActionQueryBuilder Height(int height)
-        {
-            _actions.Height = height;
-            return this;
-        }
-
-        public ImageActionQueryBuilder Page(int page)
-        {
-            _actions.Page = page;
-            return this;
-        }
-
         public byte[] ToImage()
         {
-            return ToImageAsync().Result;
+            //GetResult rethrows the original exception instead of wrapping it in an AggregateException
+            return ToImageAsync().GetAwaiter().GetResult();
         }
 
-        public async Task<byte[]> ToImageAsync() { 
-            return await ImageProcessor.ProcessHelperAsync(_imageData, _actions, isVirtual: _isVirtual);
+        public async Task<byte[]> ToImageAsync()
+        {
+            //ConfigureAwait(false) all the way down so blocking in ToImage can not deadlock a UI thread
+            return await ImageProcessor.ProcessHelperAsync(_imageData, Actions, isVirtual: _isVirtual).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Process the image and write the result to a stream.
+        /// </summary>
+        public async Task ToStreamAsync(Stream outputStream)
+        {
+            if (outputStream == null)
+            {
+                throw new ArgumentNullException(nameof(outputStream));
+            }
+
+            var result = await ToImageAsync().ConfigureAwait(false);
+            await outputStream.WriteAsync(result, 0, result.Length).ConfigureAwait(false);
         }
     }
 }
