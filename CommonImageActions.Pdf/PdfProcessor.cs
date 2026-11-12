@@ -154,7 +154,8 @@ namespace CommonImageActions.Pdf
                                 using var newImage = SKImage.FromBitmap(originalBitmap);
 
                                 //process skia image into encoded image
-                                returnValue = ImageProcessor.EncodeSkiaImage(newImage, actions).ToArray();
+                                using var encoded = ImageProcessor.EncodeSkiaImage(newImage, actions);
+                                returnValue = encoded.ToArray();
                             }
                             finally
                             {
