@@ -292,7 +292,7 @@ namespace CommonImageActions.AspNetCore
             if (int.TryParse(heightString, out int height))
             {
                 //sanity check to make sure no bad actor requests a number that may eat all the ram in the system
-                if (width < CommonImageActionSettings.MaxUrlHeight)
+                if (height < CommonImageActionSettings.MaxUrlHeight)
                 {
                     imageActions.Height = height;
                 }
